@@ -30,10 +30,8 @@
 # 实体类型配置
 ENTITY_TYPES=["person","organization","location","event","concept"]
 
-# 自定义提示词路径
-ENTITY_EXTRACTION_PROMPT_PATH="./prompts/entity_extraction.json"
-RELATIONSHIP_EXTRACTION_PROMPT_PATH="./prompts/relationship_extraction.json"
-ENTITY_SUMMARIZATION_PROMPT_PATH="./prompts/entity_summarization.json"
+# 自定义提示词配置（JSON格式）
+PROMPTS_JSON_PATH="./prompts/custom_prompts.json"
 
 # 全局实例配置
 LIGHTRAG_INSTANCE_NAME="default"

@@ -1,6 +1,6 @@
 """
 LightRAG CLI 工具
-基于initialize_rag的6种query模式实现
+基于统一实例化对象的6种query模式实现
 """
 import asyncio
 import typer
@@ -258,7 +258,7 @@ async def execute_query(query_text: str, mode: str, args: Args) -> str:
 
     # 执行查询
     try:
-        result = await processor.query(query_text, param=param)
+        result = await processor.query(query_text, mode=mode)
         return result
     except Exception as e:
         raise RuntimeError(f"查询执行失败: {e}")

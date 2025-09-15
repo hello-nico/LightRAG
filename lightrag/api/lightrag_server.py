@@ -620,6 +620,48 @@ def create_app(args):
         logger.error(f"Failed to initialize LightRAG: {e}")
         raise
 
+    # Register API instance with global instance manager
+    try:
+        from .config import register_api_instance
+        register_api_instance(rag)
+        logger.info("API instance registered with global instance manager")
+    except Exception as e:
+        logger.warning(f"Failed to register API instance: {e}")
+
+    # Inject prompts from configuration if available
+    try:
+        from .config import get_api_prompts_config
+        from lightrag.core import inject_prompts_from_config
+        import asyncio
+
+        prompts_path = get_api_prompts_config()
+        if prompts_path:
+            # Create a simple config object for prompts injection
+            class SimpleConfig:
+                def __init__(self, prompts_path):
+                    self.prompts_json_path = prompts_path
+                    self.entity_types = args.entity_types
+
+            config = SimpleConfig(prompts_path)
+
+            # Run prompts injection
+            async def inject_prompts():
+                success = await inject_prompts_from_config(rag, config)
+                if success:
+                    logger.info(f"Successfully injected prompts from {prompts_path}")
+                else:
+                    logger.warning(f"Failed to inject prompts from {prompts_path}")
+
+            # Try to run in current loop or create new one
+            try:
+                loop = asyncio.get_running_loop()
+                asyncio.create_task(inject_prompts())
+            except RuntimeError:
+                asyncio.run(inject_prompts())
+
+    except Exception as e:
+        logger.warning(f"Failed to inject prompts: {e}")
+
     # Add routes
     app.include_router(
         create_document_routes(

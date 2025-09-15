@@ -1,5 +1,6 @@
 """
 Configs for the LightRAG API.
+Enhanced with core configuration system integration.
 """
 
 import os
@@ -423,3 +424,178 @@ def update_uvicorn_mode_config():
 
 
 global_args = parse_args()
+
+
+# Core Configuration Integration
+# These functions provide integration with the new core configuration system
+# while maintaining backward compatibility
+
+def get_api_core_config():
+    """
+    Get core configuration that's compatible with API usage.
+    This integrates the core config system with the existing API config.
+
+    Returns:
+        dict: Core configuration that can be used with the instance manager
+    """
+    try:
+        from lightrag.core.config import load_core_config
+        core_config = load_core_config()
+
+        # Override with API-specific values from global_args
+        api_config = {
+            "instance_name": get_env_value("LIGHTRAG_INSTANCE_NAME", "api_server"),
+            "auto_init": False,  # API handles initialization separately
+            "working_dir": global_args.working_dir,
+            "input_dir": global_args.input_dir,
+            "workspace": global_args.workspace,
+            "entity_types": global_args.entity_types,
+            "summary_language": global_args.summary_language,
+            "prompts_json_path": get_env_value("PROMPTS_JSON_PATH", None),
+
+            # Storage configuration
+            "kv_storage": global_args.kv_storage,
+            "vector_storage": global_args.vector_storage,
+            "graph_storage": global_args.graph_storage,
+            "doc_status_storage": global_args.doc_status_storage,
+
+            # Custom configuration from environment
+            "custom_config": {}
+        }
+
+        # Add custom LIGHTRAG_ prefixed environment variables
+        env_prefix = "LIGHTRAG_"
+        for key, value in os.environ.items():
+            if key.startswith(env_prefix) and key not in [
+                "LIGHTRAG_INSTANCE_NAME",
+                "LIGHTRAG_AUTO_INIT",
+                "LIGHTRAG_KV_STORAGE",
+                "LIGHTRAG_VECTOR_STORAGE",
+                "LIGHTRAG_GRAPH_STORAGE",
+                "LIGHTRAG_DOC_STATUS_STORAGE"
+            ]:
+                config_key = key[len(env_prefix):].lower()
+                try:
+                    import json
+                    api_config["custom_config"][config_key] = json.loads(value)
+                except (json.JSONDecodeError, ValueError):
+                    api_config["custom_config"][config_key] = value
+
+        return api_config
+
+    except ImportError:
+        # If core config is not available, return basic config
+        logging.warning("Core configuration system not available, using basic config")
+        return {
+            "instance_name": "api_server",
+            "auto_init": False,
+            "working_dir": global_args.working_dir,
+            "input_dir": global_args.input_dir,
+            "workspace": global_args.workspace,
+            "entity_types": global_args.entity_types,
+            "summary_language": global_args.summary_language,
+            "prompts_json_path": None,
+            "custom_config": {}
+        }
+
+
+def get_api_instance_config():
+    """
+    Get LightRAG configuration for API server instance creation.
+    This provides the configuration needed to create a LightRAG instance
+    that's compatible with the API server's requirements.
+
+    Returns:
+        dict: Configuration for LightRAG instance creation
+    """
+    core_config = get_api_core_config()
+
+    # Convert to LightRAG constructor format
+    instance_config = {
+        "working_dir": core_config["working_dir"],
+        "input_dir": core_config["input_dir"],
+        "workspace": core_config["workspace"],
+        "entity_types": core_config["entity_types"],
+        "summary_language": core_config["summary_language"],
+
+        # Storage configuration
+        "kv_storage": core_config["kv_storage"],
+        "vector_storage": core_config["vector_storage"],
+        "graph_storage": core_config["graph_storage"],
+        "doc_status_storage": core_config["doc_status_storage"],
+
+        # Additional parameters from global_args
+        "chunk_token_size": int(global_args.chunk_size),
+        "chunk_overlap_token_size": int(global_args.chunk_overlap_size),
+        "max_async": global_args.max_async,
+        "summary_max_tokens": global_args.summary_max_tokens,
+        "summary_context_size": global_args.summary_context_size,
+        "enable_llm_cache_for_entity_extract": global_args.enable_llm_cache_for_extract,
+        "enable_llm_cache": global_args.enable_llm_cache,
+        "max_parallel_insert": global_args.max_parallel_insert,
+        "max_graph_nodes": global_args.max_graph_nodes,
+
+        # Addon parameters
+        "addon_params": {
+            "language": core_config["summary_language"],
+            "entity_types": core_config["entity_types"],
+        }
+    }
+
+    # Add custom configuration
+    instance_config["addon_params"].update(core_config["custom_config"])
+
+    return instance_config
+
+
+def register_api_instance(rag_instance):
+    """
+    Register the API server's LightRAG instance with the global instance manager.
+    This allows external components to access the same instance.
+
+    Args:
+        rag_instance: The LightRAG instance created by the API server
+    """
+    try:
+        from lightrag.core import set_instance
+
+        core_config = get_api_core_config()
+        import asyncio
+
+        # Create async function to register instance
+        async def register_instance():
+            await set_instance(
+                name=core_config["instance_name"],
+                instance=rag_instance
+            )
+            logging.info(f"Registered API instance as '{core_config['instance_name']}'")
+
+        # Run in current event loop or create new one
+        try:
+            loop = asyncio.get_running_loop()
+            # If we're in an async context, schedule the registration
+            asyncio.create_task(register_instance())
+        except RuntimeError:
+            # No running loop, run synchronously
+            asyncio.run(register_instance())
+
+    except ImportError:
+        logging.warning("Core instance manager not available, skipping API instance registration")
+    except Exception as e:
+        logging.error(f"Failed to register API instance: {e}")
+
+
+def get_api_prompts_config():
+    """
+    Get prompts configuration for the API server.
+    Returns the prompts JSON path if configured, or None.
+
+    Returns:
+        str or None: Path to prompts JSON file, or None if not configured
+    """
+    try:
+        core_config = get_api_core_config()
+        return core_config.get("prompts_json_path")
+    except Exception as e:
+        logging.warning(f"Failed to get prompts config: {e}")
+        return None
