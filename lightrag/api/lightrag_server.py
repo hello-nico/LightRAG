@@ -171,6 +171,7 @@ def create_app(args):
         "azure_openai",
         "aws_bedrock",
         "jina",
+        "qwen",
     ]:
         raise Exception("embedding binding not supported")
 

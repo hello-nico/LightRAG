@@ -1,0 +1,135 @@
+{
+  "chunks": [
+    {
+      "content": "北京是中国的首都，是一个拥有丰富历史文化的现代化国际大都市。",
+      "source_id": "china_history_001",
+      "file_path": "custom_kg",
+      "chunk_order_index": 0
+    },
+    {
+      "content": "清华大学是中国著名的高等学府，以工程教育闻名世界。",
+      "source_id": "university_002",
+      "file_path": "custom_kg",
+      "chunk_order_index": 1
+    },
+    {
+      "content": "人工智能是计算机科学的一个重要分支，涉及机器学习和深度学习技术。",
+      "source_id": "tech_003",
+      "file_path": "custom_kg",
+      "chunk_order_index": 2
+    },
+    {
+      "content": "阿里巴巴是世界级电商平台巨头，总部位于杭州。",
+      "source_id": "company_004",
+      "file_path": "custom_kg",
+      "chunk_order_index": 3
+    }
+  ],
+  "entities": [
+    {
+      "entity_name": "北京",
+      "entity_type": "Location",
+      "description": "中国首都，拥有三千多年建城史和八百多年建都史",
+      "source_id": "china_history_001",
+      "file_path": "custom_kg"
+    },
+    {
+      "entity_name": "清华大学",
+      "entity_type": "Organization",
+      "description": "位于北京的高等教育机构，成立于1911年",
+      "source_id": "university_002",
+      "file_path": "custom_kg"
+    },
+    {
+      "entity_name": "人工智能",
+      "entity_type": "Technology",
+      "description": "计算机科学分支，模拟人类智能的科学",
+      "source_id": "tech_003",
+      "file_path": "custom_kg"
+    },
+    {
+      "entity_name": "阿里巴巴",
+      "entity_type": "Company",
+      "description": "中国电商巨头，成立于1999年",
+      "source_id": "company_004",
+      "file_path": "custom_kg"
+    },
+    {
+      "entity_name": "马云",
+      "entity_type": "Person",
+      "description": "阿里巴巴创始人，企业家",
+      "source_id": "company_004"
+    },
+    {
+      "entity_name": "杭州",
+      "entity_type": "Location",
+      "description": "浙江省省会，阿里巴巴总部所在地",
+      "source_id": "company_004",
+      "file_path": "custom_kg"
+    }
+  ],
+  "relationships": [
+    {
+      "src_id": "清华大学",
+      "tgt_id": "北京",
+      "description": "清华大学位于北京",
+      "keywords": "location, education",
+      "weight": 0.9,
+      "source_id": "university_002",
+      "file_path": "custom_kg"
+    },
+    {
+      "src_id": "阿里巴巴",
+      "tgt_id": "杭州",
+      "description": "阿里巴巴总部位于杭州",
+      "keywords": "headquarters, location",
+      "weight": 1.0,
+      "source_id": "company_004",
+      "file_path": "custom_kg"
+    },
+    {
+      "src_id": "马云",
+      "tgt_id": "阿里巴巴",
+      "description": "马云创立了阿里巴巴",
+      "keywords": "founder, company",
+      "weight": 0.95,
+      "source_id": "company_004",
+      "file_path": "custom_kg"
+    },
+    {
+      "src_id": "人工智能",
+      "tgt_id": "清华大学",
+      "description": "清华大学开展人工智能研究",
+      "keywords": "research, technology",
+      "weight": 0.8,
+      "source_id": "tech_003",
+      "file_path": "custom_kg"
+    },
+    {
+      "src_id": "北京",
+      "tgt_id": "人工智能",
+      "description": "北京拥有众多人工智能相关企业",
+      "keywords": "hub, technology",
+      "weight": 0.7,
+      "source_id": "china_history_001",
+      "file_path": "custom_kg"
+    },
+    {
+      "src_id": "阿里巴巴",
+      "tgt_id": "人工智能",
+      "description": "阿里巴巴积极投入人工智能领域",
+      "keywords": "investment, technology",
+      "weight": 0.85,
+      "source_id": "company_004",
+      "file_path": "custom_kg"
+    }
+  ],
+  "metadata": {
+    "dataset_name": "中国科技发展图谱",
+    "created_date": "2025-01-20",
+    "description": "包含中国关键城市、技术机构和公司的知识图谱",
+    "total_entities": 6,
+    "total_relationships": 6,
+    "total_chunks": 4
+  }
+}

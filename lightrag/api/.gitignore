@@ -1,2 +1,8 @@
 inputs
 rag_storage
+rag_kg_output
+rag_kg_output_batch
+rag_pdfs
+rag_lightrag_local_storage
+.claude
+backlog

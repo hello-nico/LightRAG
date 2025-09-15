@@ -1,0 +1,876 @@
+{
+    "ontology": {
+        "name": "RAG_Ontology",
+        "version": "1.0"
+    },
+    "metaclasses": {
+        "ResearchEntity": {
+            "description": "研究本体，RAG领域的研究成果、论文、研究者和研究机构",
+            "subClassOf": null,
+            "properties": {
+                "objectProperties": [
+                    {
+                        "name": "affiliatedWith",
+                        "description": "隶属关系",
+                        "targetClass": "Institution",
+                        "cardinality": "many"
+                    },
+                    {
+                        "name": "publishedAt",
+                        "description": "发表于",
+                        "targetClass": "Conference",
+                        "cardinality": "one"
+                    },
+                    {
+                        "name": "collaboratesWith",
+                        "description": "合作关系",
+                        "targetClass": "Researcher",
+                        "cardinality": "many"
+                    }
+                ]
+            },
+            "subClasses": {
+                "Paper": {
+                    "description": "论文",
+                    "subClassOf": "ResearchEntity",
+                    "properties": {
+                        "datatypeProperties": [
+                            {
+                                "name": "paperId",
+                                "description": "论文唯一标识",
+                                "datatype": "string"
+                            },
+                            {
+                                "name": "title",
+                                "description": "论文标题",
+                                "datatype": "string"
+                            },
+                            {
+                                "name": "year",
+                                "description": "发表年份",
+                                "datatype": "integer"
+                            },
+                            {
+                                "name": "keyWords",
+                                "description": "关键词",
+                                "datatype": "array"
+                            },
+                            {
+                                "name": "abstract",
+                                "description": "摘要",
+                                "datatype": "string"
+                            },
+                            {
+                                "name": "keyTerms",
+                                "description": "关键术语",
+                                "datatype": "array"
+                            }
+                        ]
+                    }
+                },
+                "Researcher": {
+                    "description": "研究者",
+                    "subClassOf": "ResearchEntity",
+                    "properties": {
+                        "objectProperties": [
+                            {
+                                "name": "worksAt",
+                                "description": "工作单位",
+                                "targetClass": "Institution",
+                                "cardinality": "one"
+                            }
+                        ],
+                        "datatypeProperties": [
+                            {
+                                "name": "name",
+                                "description": "研究者姓名",
+                                "datatype": "string"
+                            }
+                        ]
+                    }
+                },
+                "Institution": {
+                    "description": "研究机构",
+                    "subClassOf": "ResearchEntity",
+                    "properties": {
+                        "datatypeProperties": [
+                            {
+                                "name": "location",
+                                "description": "机构位置",
+                                "datatype": "string"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        "ModelEntity": {
+            "description": "模型本体，包含RAG系统中所有模型相关概念",
+            "subClassOf": null,
+            "properties": {
+                "objectProperties": [
+                    {
+                        "name": "hasCapability",
+                        "description": "具有能力",
+                        "targetClass": "Capability",
+                        "cardinality": "many"
+                    },
+                    {
+                        "name": "trainedOn",
+                        "description": "训练数据",
+                        "targetClass": "Dataset",
+                        "cardinality": "many"
+                    },
+                    {
+                        "name": "supportedTask",
+                        "description": "支持任务",
+                        "targetClass": "TaskApplication",
+                        "cardinality": "many"
+                    }
+                ],
+                "datatypeProperties": [
+                    {
+                        "name": "description",
+                        "description": "模型描述",
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "parameters",
+                        "description": "参数信息",
+                        "datatype": "string"
+                    }
+                ]
+            },
+            "subClasses": {
+                "RetrievalModel": {
+                    "description": "检索模型",
+                    "subClassOf": "ModelEntity",
+                    "subClasses": {
+                        "EmbeddingModel": {
+                            "description": "嵌入模型",
+                            "subClassOf": "RetrievalModel",
+                            "example": "BERT, RoBERTa, E5"
+                        }
+                    }
+                },
+                "GenerationModel": {
+                    "description": "生成模型",
+                    "subClassOf": "ModelEntity",
+                    "subClasses": {
+                        "PretrainedLLM": {
+                            "description": "预训练大语言模型",
+                            "subClassOf": "GenerationModel",
+                            "example": "GPT, T5, BART"
+                        },
+                        "FinetunedModel": {
+                            "description": "微调模型",
+                            "subClassOf": "GenerationModel",
+                            "properties": {
+                                "objectProperties": [
+                                    {
+                                        "name": "basedOnModel",
+                                        "description": "基于模型",
+                                        "targetClass": "PretrainedLLM",
+                                        "cardinality": "one"
+                                    },
+                                    {
+                                        "name": "fineTunedFor",
+                                        "description": "微调目标",
+                                        "targetClass": "TaskApplication",
+                                        "cardinality": "one"
+                                    }
+                                ]
+                            }
+                        },
+                        "InstructionTunedModel": {
+                            "description": "指令调优模型",
+                            "subClassOf": "GenerationModel"
+                        },
+                        "DomainSpecificModel": {
+                            "description": "领域特定模型",
+                            "subClassOf": "GenerationModel"
+                        }
+                    }
+                }
+            }
+        },
+        "DataEntity": {
+            "description": "数据本体，RAG系统中涉及的所有数据资源概念",
+            "subClassOf": null,
+            "properties": {
+                "objectProperties": [
+                    {
+                        "name": "processedBy",
+                        "description": "处理工具",
+                        "targetClass": "ToolEntity",
+                        "cardinality": "many"
+                    },
+                    {
+                        "name": "belongsToDataset",
+                        "description": "属于数据集",
+                        "targetClass": "Dataset",
+                        "cardinality": "one"
+                    }
+                ],
+                "datatypeProperties": [
+                    {
+                        "name": "size",
+                        "description": "数据大小",
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "description",
+                        "description": "数据描述",
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "domain",
+                        "description": "数据领域",
+                        "datatype": "string"
+                    }
+                ]
+            },
+            "subClasses": {
+                "RawData": {
+                    "description": "原始数据",
+                    "subClassOf": "DataEntity",
+                    "subClasses": {
+                        "Text": {
+                            "description": "文本数据",
+                            "subClassOf": "RawData"
+                        },
+                        "Image": {
+                            "description": "图像数据",
+                            "subClassOf": "RawData"
+                        },
+                        "Audio": {
+                            "description": "音频数据",
+                            "subClassOf": "RawData"
+                        },
+                        "Video": {
+                            "description": "视频数据",
+                            "subClassOf": "RawData"
+                        }
+                    }
+                },
+                "Dataset": {
+                    "description": "数据集",
+                    "subClassOf": "DataEntity",
+                    "example": "Natural_Questions, MS-MARCO, BEIR",
+                    "subClasses": {
+                        "TrainingDataset": {
+                            "description": "训练数据集",
+                            "subClassOf": "Dataset"
+                        },
+                        "TestDataset": {
+                            "description": "测试数据集",
+                            "subClassOf": "Dataset"
+                        },
+                        "BenchmarkDataset": {
+                            "description": "基准数据集",
+                            "subClassOf": "Dataset",
+                            "properties": {
+                                "objectProperties": [
+                                    {
+                                        "name": "evaluatesTask",
+                                        "description": "评估任务",
+                                        "targetClass": "TaskApplication",
+                                        "cardinality": "one"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "KnowledgeBase": {
+                    "description": "知识库",
+                    "subClassOf": "DataEntity",
+                    "properties": {
+                        "datatypeProperties": [
+                            {
+                                "name": "processing",
+                                "description": "处理方法",
+                                "datatype": "string"
+                            },
+                            {
+                                "name": "size",
+                                "description": "知识库规模",
+                                "datatype": "string"
+                            }
+                        ]
+                    },
+                    "subClasses": {
+                        "VectorDatabase": {
+                            "description": "向量数据库",
+                            "subClassOf": "KnowledgeBase",
+                            "example": "Pinecone, Weaviate, Chroma"
+                        },
+                        "KnowledgeGraph": {
+                            "description": "知识图谱",
+                            "subClassOf": "KnowledgeBase"
+                        }
+                    }
+                }
+            }
+        },
+        "MethodEntity": {
+            "description": "方法本体，RAG系统中所有与算法、策略、核心方法论和技术路线",
+            "subClassOf": null,
+            "properties": {
+                "objectProperties": [
+                    {
+                        "name": "appliesTo",
+                        "description": "应用于",
+                        "targetClass": "TaskApplication",
+                        "cardinality": "many"
+                    },
+                    {
+                        "name": "usesModel",
+                        "description": "使用模型",
+                        "targetClass": "ModelEntity",
+                        "cardinality": "many"
+                    },
+                    {
+                        "name": "optimizesFor",
+                        "description": "优化目标",
+                        "targetClass": "MetricsEntity",
+                        "cardinality": "many"
+                    }
+                ],
+                "datatypeProperties": [
+                    {
+                        "name": "components",
+                        "description": "组件列表",
+                        "datatype": "array"
+                    },
+                    {
+                        "name": "accuracy",
+                        "description": "准确率",
+                        "datatype": "float"
+                    },
+                    {
+                        "name": "efficiency",
+                        "description": "效率",
+                        "datatype": "float"
+                    }
+                ]
+            },
+            "subClasses": {
+                "Paradigm": {
+                    "description": "范式",
+                    "subClassOf": "MethodEntity",
+                    "subClasses": {
+                        "NaiveRAG": {
+                            "description": "朴素RAG",
+                            "subClassOf": "Paradigm"
+                        },
+                        "AdvancedRAG": {
+                            "description": "高级RAG",
+                            "subClassOf": "Paradigm"
+                        },
+                        "ModularRAG": {
+                            "description": "模块化RAG",
+                            "subClassOf": "Paradigm"
+                        }
+                    }
+                },
+                "Architecture": {
+                    "description": "架构设计",
+                    "subClassOf": "MethodEntity",
+                    "subClasses": {
+                        "PipelineRAG": {
+                            "description": "流水线RAG",
+                            "subClassOf": "Architecture"
+                        },
+                        "IterativeRAG": {
+                            "description": "迭代RAG",
+                            "subClassOf": "Architecture"
+                        },
+                        "AdaptiveRAG": {
+                            "description": "自适应RAG",
+                            "subClassOf": "Architecture"
+                        },
+                        "End2EndRAG": {
+                            "description": "端到端RAG",
+                            "subClassOf": "Architecture"
+                        },
+                        "HierarchicalRAG": {
+                            "description": "层次化RAG",
+                            "subClassOf": "Architecture"
+                        }
+                    }
+                },
+                "Index": {
+                    "description": "索引",
+                    "subClassOf": "MethodEntity",
+                    "subClasses": {
+                        "DocumentChunk": {
+                            "description": "文档块",
+                            "subClassOf": "Index",
+                            "properties": {
+                                "objectProperties": [
+                                    {
+                                        "name": "belongsToDocument",
+                                        "description": "属于文档",
+                                        "targetClass": "Document",
+                                        "cardinality": "one"
+                                    }
+                                ],
+                                "datatypeProperties": [
+                                    {
+                                        "name": "chunkSize",
+                                        "description": "分块大小",
+                                        "datatype": "integer"
+                                    },
+                                    {
+                                        "name": "overlapSize",
+                                        "description": "重叠大小",
+                                        "datatype": "integer"
+                                    }
+                                ]
+                            }
+                        },
+                        "VectorEmbedding": {
+                            "description": "向量嵌入",
+                            "subClassOf": "Index",
+                            "properties": {
+                                "objectProperties": [
+                                    {
+                                        "name": "generatedBy",
+                                        "description": "生成模型",
+                                        "targetClass": "EmbeddingModel",
+                                        "cardinality": "one"
+                                    }
+                                ],
+                                "datatypeProperties": [
+                                    {
+                                        "name": "dimension",
+                                        "description": "向量维度",
+                                        "datatype": "integer"
+                                    },
+                                    {
+                                        "name": "similarity",
+                                        "description": "相似度算法",
+                                        "datatype": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "VectorIndex": {
+                            "description": "向量索引",
+                            "subClassOf": "Index",
+                            "properties": {
+                                "datatypeProperties": [
+                                    {
+                                        "name": "indexType",
+                                        "description": "索引类型",
+                                        "datatype": "string"
+                                    },
+                                    {
+                                        "name": "indexSize",
+                                        "description": "索引大小",
+                                        "datatype": "integer"
+                                    }
+                                ]
+                            }
+                        },
+                        "HybridIndex": {
+                            "description": "混合索引",
+                            "subClassOf": "Index",
+                            "properties": {
+                                "objectProperties": [
+                                    {
+                                        "name": "combinesIndexes",
+                                        "description": "组合索引",
+                                        "targetClass": "Index",
+                                        "cardinality": "many"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "RetrievalMethod": {
+                    "description": "检索方法",
+                    "subClassOf": "MethodEntity",
+                    "properties": {
+                        "datatypeProperties": [
+                            {
+                                "name": "details",
+                                "description": "检索方法细节",
+                                "datatype": "string"
+                            },
+                            {
+                                "name": "reranking",
+                                "description": "重排序策略",
+                                "datatype": "string"
+                            }
+                        ]
+                    },
+                    "subClasses": {
+                        "SparseRetrieval": {
+                            "description": "稀疏检索",
+                            "subClassOf": "RetrievalMethod"
+                        },
+                        "DenseRetrieval": {
+                            "description": "密集检索",
+                            "subClassOf": "RetrievalMethod"
+                        },
+                        "HybridRetrieval": {
+                            "description": "混合检索",
+                            "subClassOf": "RetrievalMethod"
+                        }
+                    }
+                },
+                "GenerationMethod": {
+                    "description": "生成方法",
+                    "subClassOf": "MethodEntity",
+                    "properties": {
+                        "datatypeProperties": [
+                            {
+                                "name": "details",
+                                "description": "生成方法细节",
+                                "datatype": "string"
+                            },
+                            {
+                                "name": "promptEngineering",
+                                "description": "提示工程技巧",
+                                "datatype": "string"
+                            }
+                        ]
+                    },
+                    "subClasses": {
+                        "ExtractiveGeneration": {
+                            "description": "抽取式生成",
+                            "subClassOf": "GenerationMethod"
+                        },
+                        "AbstractiveGeneration": {
+                            "description": "抽象式生成",
+                            "subClassOf": "GenerationMethod"
+                        },
+                        "HybridGeneration": {
+                            "description": "混合生成",
+                            "subClassOf": "GenerationMethod"
+                        },
+                        "IterativeGeneration": {
+                            "description": "迭代生成",
+                            "subClassOf": "GenerationMethod"
+                        }
+                    }
+                },
+                "TrainingMethod": {
+                    "description": "训练方法",
+                    "subClassOf": "MethodEntity",
+                    "properties": {
+                        "datatypeProperties": [
+                            {
+                                "name": "jointTraining",
+                                "description": "是否联合训练",
+                                "datatype": "boolean"
+                            },
+                            {
+                                "name": "details",
+                                "description": "训练细节",
+                                "datatype": "string"
+                            }
+                        ]
+                    },
+                    "subClasses": {
+                        "FinetuningStrategy": {
+                            "description": "微调策略",
+                            "subClassOf": "TrainingMethod"
+                        },
+                        "JointTraining": {
+                            "description": "联合训练",
+                            "subClassOf": "TrainingMethod"
+                        },
+                        "SeparateTraining": {
+                            "description": "分离训练",
+                            "subClassOf": "TrainingMethod"
+                        }
+                    }
+                }
+            }
+        },
+        "MetricsEntity": {
+            "description": "指标本体，RAG系统中所有评估和度量相关概念",
+            "subClassOf": null,
+            "properties": {
+                "objectProperties": [
+                    {
+                        "name": "measuresAspect",
+                        "description": "度量方面",
+                        "targetClass": "Aspect",
+                        "cardinality": "one"
+                    },
+                    {
+                        "name": "appliedToTask",
+                        "description": "应用任务",
+                        "targetClass": "TaskApplication",
+                        "cardinality": "many"
+                    }
+                ],
+                "datatypeProperties": [
+                    {
+                        "name": "name",
+                        "description": "指标名称",
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "description",
+                        "description": "指标描述和计算方法",
+                        "datatype": "string"
+                    }
+                ]
+            },
+            "subClasses": {
+                "RetrievalMetrics": {
+                    "description": "检索指标",
+                    "subClassOf": "MetricsEntity",
+                    "subClasses": {
+                        "Precision": {
+                            "description": "精确率",
+                            "subClassOf": "RetrievalMetrics"
+                        },
+                        "Recall": {
+                            "description": "召回率",
+                            "subClassOf": "RetrievalMetrics"
+                        },
+                        "F1Score": {
+                            "description": "F1分数",
+                            "subClassOf": "RetrievalMetrics"
+                        }
+                    }
+                },
+                "GenerationMetrics": {
+                    "description": "生成指标",
+                    "subClassOf": "MetricsEntity",
+                    "subClasses": {
+                        "BLEU": {
+                            "description": "BLEU分数",
+                            "subClassOf": "GenerationMetrics"
+                        },
+                        "ROUGE": {
+                            "description": "ROUGE分数",
+                            "subClassOf": "GenerationMetrics"
+                        },
+                        "BERTScore": {
+                            "description": "BERTScore",
+                            "subClassOf": "GenerationMetrics"
+                        },
+                        "Faithfulness": {
+                            "description": "忠实度",
+                            "subClassOf": "GenerationMetrics"
+                        },
+                        "Fluency": {
+                            "description": "流畅度",
+                            "subClassOf": "GenerationMetrics"
+                        }
+                    }
+                },
+                "EvaluationMetric": {
+                    "description": "评估指标",
+                    "subClassOf": "MetricsEntity",
+                    "subClasses": {
+                        "HumanEvaluation": {
+                            "description": "人工评估",
+                            "subClassOf": "EvaluationMetric",
+                            "subClasses": {
+                                "Relevance": {
+                                    "description": "相关性",
+                                    "subClassOf": "HumanEvaluation"
+                                },
+                                "Correctness": {
+                                    "description": "正确性",
+                                    "subClassOf": "HumanEvaluation"
+                                },
+                                "Completeness": {
+                                    "description": "完整性",
+                                    "subClassOf": "HumanEvaluation"
+                                },
+                                "Helpfulness": {
+                                    "description": "有用性",
+                                    "subClassOf": "HumanEvaluation"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "ToolEntity": {
+            "description": "工具本体，RAG开发和部署中使用的工具、框架和平台",
+            "subClassOf": null,
+            "properties": {
+                "objectProperties": [
+                    {
+                        "name": "supportsFramework",
+                        "description": "支持框架",
+                        "targetClass": "DevelopmentFramework",
+                        "cardinality": "many"
+                    },
+                    {
+                        "name": "integratesWith",
+                        "description": "集成工具",
+                        "targetClass": "ToolEntity",
+                        "cardinality": "many"
+                    },
+                    {
+                        "name": "developedBy",
+                        "description": "开发者",
+                        "targetClass": "Institution",
+                        "cardinality": "one"
+                    }
+                ]
+            },
+            "subClasses": {
+                "DevelopmentFramework": {
+                    "description": "开发框架",
+                    "subClassOf": "ToolEntity"
+                },
+                "VectorDatabase": {
+                    "description": "向量数据库",
+                    "subClassOf": "ToolEntity"
+                },
+                "EvaluationTool": {
+                    "description": "评估工具",
+                    "subClassOf": "ToolEntity"
+                }
+            }
+        },
+        "ApplicationEntity": {
+            "description": "应用本体，RAG技术的具体应用场景和解决方案",
+            "subClassOf": null,
+            "properties": {
+                "objectProperties": [
+                    {
+                        "name": "usesTechnology",
+                        "description": "使用技术",
+                        "targetClass": "MethodEntity",
+                        "cardinality": "many"
+                    }
+                ]
+            },
+            "subClasses": {
+                "DomainApplication": {
+                    "description": "领域应用",
+                    "subClassOf": "ApplicationEntity",
+                    "subClasses": {
+                        "MedicalRAG": {
+                            "description": "医疗RAG",
+                            "subClassOf": "DomainApplication"
+                        },
+                        "LegalRAG": {
+                            "description": "法律RAG",
+                            "subClassOf": "DomainApplication"
+                        },
+                        "EducationalRAG": {
+                            "description": "教育RAG",
+                            "subClassOf": "DomainApplication"
+                        }
+                    }
+                },
+                "TaskApplication": {
+                    "description": "任务应用",
+                    "subClassOf": "ApplicationEntity",
+                    "subClasses": {
+                        "QA": {
+                            "description": "问答系统",
+                            "subClassOf": "TaskApplication"
+                        },
+                        "DocumentSummarization": {
+                            "description": "文档摘要",
+                            "subClassOf": "TaskApplication"
+                        },
+                        "ConversationalAI": {
+                            "description": "对话AI",
+                            "subClassOf": "TaskApplication"
+                        }
+                    }
+                }
+            }
+        },
+        "RetrievalEntity": {
+            "description": "检索本体，RAG系统中所有与信息检索相关的概念、算法和技术",
+            "subClassOf": null,
+            "crossReferences": {
+                "retrievalMethod": "MethodEntity.RetrievalMethod",
+                "retrievalModel": "ModelEntity.RetrievalModel",
+                "indexStrategy": "MethodEntity.Index",
+                "retrievalMetrics": "MetricsEntity.RetrievalMetrics"
+            }
+        },
+        "GenerationEntity": {
+            "description": "生成本体，RAG系统中所有与文本生成相关的模型、方法和技术",
+            "subClassOf": null,
+            "crossReferences": {
+                "generationMethod": "MethodEntity.GenerationMethod",
+                "generationModel": "ModelEntity.GenerationModel",
+                "generationMetrics": "MetricsEntity.GenerationMetrics"
+            },
+            "subClasses": {
+                "PromptEngineering": {
+                    "description": "提示工程",
+                    "subClassOf": "GenerationEntity",
+                    "subClasses": {
+                        "PromptTemplate": {
+                            "description": "提示模板",
+                            "subClassOf": "PromptEngineering"
+                        },
+                        "FewShotPrompt": {
+                            "description": "少样本提示",
+                            "subClassOf": "PromptEngineering"
+                        },
+                        "ChainOfThought": {
+                            "description": "思维链",
+                            "subClassOf": "PromptEngineering"
+                        }
+                    }
+                }
+            }
+        },
+        "EvaluationEntity": {
+            "description": "评估本体，RAG系统中所有评估相关的概念和方法",
+            "subClassOf": null,
+            "properties": {
+                "datatypeProperties": [
+                    {
+                        "name": "baselineComparison",
+                        "description": "基线对比",
+                        "datatype": "array"
+                    },
+                    {
+                        "name": "resultsSummary",
+                        "description": "结果总结",
+                        "datatype": "string"
+                    }
+                ]
+            },
+            "crossReferences": {
+                "evaluationMetric": "MetricsEntity.EvaluationMetric",
+                "testDataset": "DataEntity.Dataset.TestDataset",
+                "evaluationTool": "ToolEntity.EvaluationTool"
+            },
+            "subClasses": {
+                "EvaluationType": {
+                    "description": "评估类型",
+                    "subClassOf": "EvaluationEntity",
+                    "subClasses": {
+                        "RetrievalEvaluation": {
+                            "description": "检索评估",
+                            "subClassOf": "EvaluationType"
+                        },
+                        "GenerationEvaluation": {
+                            "description": "生成评估",
+                            "subClassOf": "EvaluationType"
+                        },
+                        "UserEvaluation": {
+                            "description": "用户评估",
+                            "subClassOf": "EvaluationType"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

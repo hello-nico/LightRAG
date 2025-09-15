@@ -85,11 +85,13 @@ EMBEDDING_DIM=1024
 ### Starting LightRAG Server
 
 The LightRAG Server supports two operational modes:
+
 * The simple and efficient Uvicorn mode:
 
 ```
 lightrag-server
 ```
+
 * The multiprocess Gunicorn + Uvicorn mode (production mode, not supported on Windows environments):
 
 ```
@@ -100,13 +102,13 @@ When starting LightRAG, the current working directory must contain the `.env` co
 
 During startup, configurations in the `.env` file can be overridden by command-line parameters. Common command-line parameters include:
 
-- `--host`: Server listening address (default: 0.0.0.0)
-- `--port`: Server listening port (default: 9621)
-- `--timeout`: LLM request timeout (default: 150 seconds)
-- `--log-level`: Log level (default: INFO)
-- `--working-dir`: Database persistence directory (default: ./rag_storage)
-- `--input-dir`: Directory for uploaded files (default: ./inputs)
-- `--workspace`: Workspace name, used to logically isolate data between multiple LightRAG instances (default: empty)
+* `--host`: Server listening address (default: 0.0.0.0)
+* `--port`: Server listening port (default: 9621)
+* `--timeout`: LLM request timeout (default: 150 seconds)
+* `--log-level`: Log level (default: INFO)
+* `--working-dir`: Database persistence directory (default: ./rag_storage)
+* `--input-dir`: Directory for uploaded files (default: ./inputs)
+* `--workspace`: Workspace name, used to logically isolate data between multiple LightRAG instances (default: empty)
 
 ### Launching LightRAG Server with Docker
 
@@ -179,10 +181,10 @@ Configuring an independent working directory and a dedicated `.env` configuratio
 
 The command-line `workspace` argument and the `WORKSPACE` environment variable in the `.env` file can both be used to specify the workspace name for the current instance, with the command-line argument having higher priority. Here is how workspaces are implemented for different types of storage:
 
-- **For local file-based databases, data isolation is achieved through workspace subdirectories:** `JsonKVStorage`, `JsonDocStatusStorage`, `NetworkXStorage`, `NanoVectorDBStorage`, `FaissVectorDBStorage`.
-- **For databases that store data in collections, it's done by adding a workspace prefix to the collection name:** `RedisKVStorage`, `RedisDocStatusStorage`, `MilvusVectorDBStorage`, `QdrantVectorDBStorage`, `MongoKVStorage`, `MongoDocStatusStorage`, `MongoVectorDBStorage`, `MongoGraphStorage`, `PGGraphStorage`.
-- **For relational databases, data isolation is achieved by adding a `workspace` field to the tables for logical data separation:** `PGKVStorage`, `PGVectorStorage`, `PGDocStatusStorage`.
-- **For graph databases, logical data isolation is achieved through labels:** `Neo4JStorage`, `MemgraphStorage`
+* **For local file-based databases, data isolation is achieved through workspace subdirectories:** `JsonKVStorage`, `JsonDocStatusStorage`, `NetworkXStorage`, `NanoVectorDBStorage`, `FaissVectorDBStorage`.
+* **For databases that store data in collections, it's done by adding a workspace prefix to the collection name:** `RedisKVStorage`, `RedisDocStatusStorage`, `MilvusVectorDBStorage`, `QdrantVectorDBStorage`, `MongoKVStorage`, `MongoDocStatusStorage`, `MongoVectorDBStorage`, `MongoGraphStorage`, `PGGraphStorage`.
+* **For relational databases, data isolation is achieved by adding a `workspace` field to the tables for logical data separation:** `PGKVStorage`, `PGVectorStorage`, `PGDocStatusStorage`.
+* **For graph databases, logical data isolation is achieved through labels:** `Neo4JStorage`, `MemgraphStorage`
 
 To maintain compatibility with legacy data, the default workspace for PostgreSQL is `default` and for Neo4j is `base` when no workspace is configured. For all external storages, the system provides dedicated workspace environment variables to override the common `WORKSPACE` environment variable configuration. These storage-specific workspace environment variables are: `REDIS_WORKSPACE`, `MILVUS_WORKSPACE`, `QDRANT_WORKSPACE`, `MONGODB_WORKSPACE`, `POSTGRES_WORKSPACE`, `NEO4J_WORKSPACE`, `MEMGRAPH_WORKSPACE`.
 
@@ -368,6 +370,7 @@ LightRAG supports binding to various LLM/Embedding backends:
 Use environment variables `LLM_BINDING` or CLI argument `--llm-binding` to select the LLM backend type. Use environment variables `EMBEDDING_BINDING` or CLI argument `--embedding-binding` to select the Embedding backend type.
 
 For LLM and embedding configuration examples, please refer to the `env.example` file in the project's root directory. To view the complete list of configurable options for OpenAI and Ollama-compatible LLM interfaces, use the following commands:
+
 ```
 lightrag-server --llm-binding openai --help
 lightrag-server --llm-binding ollama --help
@@ -377,6 +380,7 @@ lightrag-server --embedding-binding ollama --help
 > Please use OpenAI-compatible method to access LLMs deployed by OpenRouter or vLLM. You can pass additional parameters to OpenRouter or vLLM through the `OPENAI_LLM_EXTRA_BODY` environment variable to disable reasoning mode or achieve other personalized controls.
 
 ### Entity Extraction Configuration
+
 * ENABLE_LLM_CACHE_FOR_EXTRACT: Enable LLM cache for entity extraction (default: true)
 
 It's very common to set `ENABLE_LLM_CACHE_FOR_EXTRACT` to true for a test environment to reduce the cost of LLM calls.
@@ -426,9 +430,9 @@ You cannot change storage implementation selection after adding documents to Lig
 
 Reranking query-recalled chunks can significantly enhance retrieval quality by re-ordering documents based on an optimized relevance scoring model. LightRAG currently supports the following rerank providers:
 
-- **Cohere / vLLM**: Offers full API integration with Cohere AI's `v2/rerank` endpoint. As vLLM provides a Cohere-compatible reranker API, all reranker models deployed via vLLM are also supported.
-- **Jina AI**: Provides complete implementation compatibility with all Jina rerank models.
-- **Aliyun**: Features a custom implementation designed to support Aliyun's rerank API format.
+* **Cohere / vLLM**: Offers full API integration with Cohere AI's `v2/rerank` endpoint. As vLLM provides a Cohere-compatible reranker API, all reranker models deployed via vLLM are also supported.
+* **Jina AI**: Provides complete implementation compatibility with all Jina rerank models.
+* **Aliyun**: Features a custom implementation designed to support Aliyun's rerank API format.
 
 The rerank provider is configured via the `.env` file. Below is an example configuration for a rerank model deployed locally using vLLM:
 
@@ -521,8 +525,8 @@ Large files should be divided into smaller segments to enable incremental proces
 
 All servers (LoLLMs, Ollama, OpenAI and Azure OpenAI) provide the same REST API endpoints for RAG functionality. When the API Server is running, visit:
 
-- Swagger UI: http://localhost:9621/docs
-- ReDoc: http://localhost:9621/redoc
+* Swagger UI: <http://localhost:9621/docs>
+* ReDoc: <http://localhost:9621/redoc>
 
 You can test the API endpoints using the provided curl commands or through the Swagger UI interface. Make sure to:
 
@@ -543,9 +547,11 @@ LightRAG implements asynchronous document indexing to enable frontend monitoring
 * `/documents/texts`
 
 **Document Processing Status Query Endpoint:**
+
 * `/track_status/{track_id}`
 
 This endpoint provides comprehensive status information including:
+
 * Document processing status (pending/processing/processed/failed)
 * Content summary and metadata
 * Error messages if processing failed

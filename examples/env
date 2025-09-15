@@ -1,0 +1,30 @@
+ # LLM 配置
+    llm_api_key: str = "sk-4e76fcdf3f95467198edabdc0d6627f6"
+    llm_base_url: str = "http://10.0.62.214:15000/k-llm"
+    #default_model: str = "Qwen2.5-72B-Instruct-GPTQ-Int4"
+    #default_model: str = "claude-sonnet-4"
+    default_model: str = "deepseek-v3-250324"
+    
+    # 语义检索服务配置
+    KB_API_SERVICE_K_DATA: str = "10.0.62.214:15000/api/v1/k-data"
+    
+    # 向量数据库配置
+    VECTOR_DB_URL: str = "http://10.0.62.214:6333/"
+    #VECTOR_DB_URL: str = "http://localhost:6333/"
+    VECTOR_DB_API_KEY: str = "abc123"
+    
+    # 稠密向量模型配置
+    EMBEDDING_API_BASE: str = "10.0.62.206:51200/v1"
+    EMBEDDING_API_KEY: str = "sk-uHj8K2mNpL5vR9xQ4tY7wB3cA6nE0iF1gD8sZ2yX4jM9kP3h"
+    EMBEDDING_MODEL: str = "Qwen3-Embedding-0.6B"
+    EMBEDDING_DIMENSION: int = 1024
+
+    # qdrant配置
+    QDRANT_URL: str = "http://localhost:6333/"
+    QDRANT_API_KEY: str = "abc123"
+
+
+   # 配置Neo4j连接信息
+    NEO4J_URI = "bolt://172.31.64.1:7687"
+    NEO4J_USERNAME = "neo4j"
+    NEO4J_PASSWORD = "12345678q" 

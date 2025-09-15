@@ -73,3 +73,10 @@ test_*
 memory-bank
 memory-bank/
 .clinerules
+
+.claude
+backlog
+rag_kg_output/
+rag_kg_output_batch/
+rag_lightrag_local_storage/
+rag_pdfs/
