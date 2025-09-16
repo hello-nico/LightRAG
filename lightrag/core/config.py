@@ -47,6 +47,19 @@ class LightRAGCoreConfig:
     # Working directories
     working_dir: str = "./rag_storage"
     input_dir: str = "./inputs"
+    
+    # LLM configuration
+    llm_model: str = "grok-code-fast-1"
+    llm_base_url: str = None
+    llm_api_key: str = None
+    llm_binding: str = "openai"
+    
+    # Embedding configuration
+    embedding_model: str = "Qwen3-Embedding-0.6B"
+    embedding_base_url: str = None
+    embedding_api_key: str = None
+    embedding_dimensions: int = 1024
+    embedding_binding: str = "qwen"
 
     # Additional configuration
     custom_config: Dict[str, Any] = field(default_factory=dict)
@@ -119,6 +132,19 @@ def load_core_config(
     # Load language and workspace
     config.summary_language = get_env_value("SUMMARY_LANGUAGE", config.summary_language)
     config.workspace = get_env_value("WORKSPACE", config.workspace)
+    
+    # Load LLM configuration
+    config.llm_model = get_env_value("LLM_MODEL", config.llm_model)
+    config.llm_base_url = get_env_value("LLM_BINDING_HOST", config.llm_base_url)
+    config.llm_api_key = get_env_value("LLM_BINDING_API_KEY", config.llm_api_key)
+    config.llm_binding = get_env_value("LLM_BINDING", config.llm_binding)
+    
+    # Load embedding configuration
+    config.embedding_model = get_env_value("EMBEDDING_MODEL", config.embedding_model)
+    config.embedding_base_url = get_env_value("EMBEDDING_BINDING_HOST", config.embedding_base_url)
+    config.embedding_api_key = get_env_value("EMBEDDING_BINDING_API_KEY", config.embedding_api_key)
+    config.embedding_dimensions = get_env_value("EMBEDDING_DIM", config.embedding_dimensions)
+    config.embedding_binding = get_env_value("EMBEDDING_BINDING", config.embedding_binding)
 
     # Load storage configuration (optional, for CLI usage)
     config.kv_storage = get_env_value("LIGHTRAG_KV_STORAGE", config.kv_storage)

@@ -168,22 +168,34 @@ class LightRAGInstanceManager:
 
     async def _default_builder(self, config: LightRAGCoreConfig) -> LightRAG:
         """Default builder for LightRAG instances"""
-        from lightrag.llm.openai import gpt_4o_mini_complete
-        from lightrag.utils import wrap_embedding_func_with_attrs
+        from lightrag.llm.openai import openai_complete_if_cache
+        from lightrag.llm.qwen import qwen_embedding, wrap_embedding_func_with_attrs
         import numpy as np
-
-        # Create default embedding function with proper embedding dimension
-        @wrap_embedding_func_with_attrs(embedding_dim=1024)
-        async def default_embedding_func(texts: list[str]) -> np.ndarray:
-            # This is a placeholder - in real usage, this should be configured
-            embedding_dim = 1024
-            return np.random.rand(len(texts), embedding_dim).astype(np.float32)
+        
+        async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            return await openai_complete_if_cache(
+                config.llm_model,
+                prompt,
+                system_prompt=system_prompt,
+                base_url=config.llm_base_url,
+                api_key=config.llm_api_key,
+                history_messages=history_messages,
+                **kwargs)
+            
+        @wrap_embedding_func_with_attrs(embedding_dim=config.embedding_dimensions)
+        async def embedding_func(texts: List[str]) -> np.ndarray:
+            return await qwen_embedding(
+                texts=texts,
+                model=config.embedding_model,
+                base_url=config.embedding_base_url,
+                api_key=config.embedding_api_key,
+                dimensions=config.embedding_dimensions)
 
         # Build instance with basic configuration
         rag_config = {
             "working_dir": config.working_dir,
-            "llm_model_func": gpt_4o_mini_complete,
-            "embedding_func": default_embedding_func,
+            "llm_model_func": llm_model_func,
+            "embedding_func": embedding_func,
         }
 
         # Add optional configuration

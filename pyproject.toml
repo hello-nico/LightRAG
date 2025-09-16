@@ -48,6 +48,7 @@ dependencies = [
     "setuptools",
     "tenacity",
     "tiktoken",
+    "tqdm>=4.67.1",
     "typer>=0.17.4",
     "uvicorn>=0.35.0",
     "xlsxwriter>=3.1.0",

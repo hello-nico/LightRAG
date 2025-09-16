@@ -25,6 +25,7 @@
 python -m cli extract --input_dir ./pdfs --output_dir ./output
 ```
 
+其中output是lightrag的working_dir，pdfs是pdf文件目录。
 功能包括：
 
 - 扫描指定目录的 PDF 文件
@@ -109,3 +110,112 @@ python -m cli extract --input_dir ./pdfs --max_concurrent 5 --model qwen-embeddi
 3. 测试并发处理和错误处理
 4. 验证配置系统是否正常加载
 5. 确保向后兼容性
+
+---
+
+## 评估与调整（补充）
+
+结论：总体方向正确，但需强化可执行性与离线可用性。
+
+- 新增离线友好模式：为 `extract` 增加 `--mode {dry-run|insert|full}`。默认 `dry-run` 仅做提取与统计，无需网络/Key；`insert` 仅将文本插入；`full` 执行完整流程（需网络与 API Key）。
+- 解除对 `examples/rag_pdf_processor` 的耦合：CLI 仅复用 `lightrag.core` 与 `lightrag.tools.pdf_reader.PDFExtractor`，Qwen 作为可选构建器。
+- 明确并发、进度与错误聚合：使用 `asyncio.Semaphore(max_concurrent)` + `gather`，输出成功/失败统计。
+
+## 可执行落地步骤（带验收标准）
+
+1) 重构查询命令到核心实例
+
+- 修改 `cli.py`：移除 `examples.rag_pdf_processor` 引用；新增 `get_cli_instance()`，通过 `lightrag.core.load_core_config/get_lightrag_instance` 获取或创建实例（首次调用初始化）。保留 6 种模式与 `--stream/--no-stream`。
+- 验收：
+  - `python -m cli modes` 正常列出 6 种模式
+  - `python -m cli version` 输出版本与说明
+
+2) 新增 `extract` 子命令（异步并发）
+
+- 命令：
+  - `python -m cli extract --input-dir ./rag_pdfs --output-dir ./rag_storage --max-concurrent 4 --mode dry-run`
+- 选项：
+  - `--input-dir` 默认 `./rag_pdfs`
+  - `--output-dir` 默认读取 `WORKING_DIR` 或 `./rag_storage`
+  - `--max-concurrent` 默认 4
+  - `--mode`：`dry-run|insert|full`（默认 `dry-run`）
+- 实现：
+  - 使用 `PDFExtractor` 提取文本与元数据；并发受 `Semaphore` 限制；统计成功/失败；`insert/full` 时调用 `ainsert`。
+- 验收：清晰的进度、成功/失败统计与非 0 失败计数时的错误列表。
+
+3) 可选 Qwen 构建器
+
+- 若检测到 `QWEN_*` 环境变量（`QWEN_API_KEY` 等），则用 `lightrag.llm.qwen.qwen_embedding_func` 包装后作为 embedding；否则沿用核心默认回退。
+- 验收：未设置 Qwen 环境时命令可用；设置后 `--mode full` 正常执行。
+
+4) 配置优先级与覆盖
+
+- CLI 参数 > `.env` > 核心默认；`--output-dir` 覆盖核心配置中的 `working_dir`。
+- 验收：更改 CLI 参数能反映到运行目录与实例配置。
+
+5) 质量保障
+
+- 通过 `pre-commit` 与 `ruff`（项目已配置）。
+- 验收：`pre-commit run -a` 全部通过。
+
+## 测试用例与验收标准（可直接执行）
+
+环境准备：
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e .[api]
+pre-commit install
+```
+
+1. PDF 提取器离线单测（需仓库内任意 PDF 文件）
+
+```bash
+python - << 'PY'
+from lightrag.tools.pdf_reader import PDFExtractor
+from pathlib import Path
+p = Path('rag_pdfs')
+pdfs = [x for x in p.glob('*.pdf')]
+assert pdfs, '请在 rag_pdfs 放置至少一个 PDF 用例'
+ok = len(PDFExtractor().extract(str(pdfs[0])).full_text) > 0
+print('OK' if ok else 'FAIL')
+PY
+```
+
+期望：打印 `OK`。
+
+2. CLI 基本回归（离线）
+
+```bash
+python -m cli modes
+python -m cli version
+```
+
+期望：列出 6 种模式；显示版本与说明。
+
+3. 提取命令（离线 dry-run）
+
+```bash
+python -m cli extract --input-dir rag_pdfs --output-dir ./rag_lightrag_storage --max-concurrent 2 --mode dry-run
+```
+
+期望：输出“Found N PDFs… Processed: N succeeded / 0 failed”，进程退出码 0；`./rag_lightrag_storage` 存在。
+
+4. 可选 Qwen 集成（需网络与 Key）
+
+```bash
+export QWEN_API_KEY=your_key
+export QWEN_EMBEDDING_MODEL=Qwen3-Embedding-0.6B
+export QWEN_EMBEDDING_HOST=https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings
+python -m cli extract --input-dir rag_pdfs --output-dir ./rag_lightrag_storage --max-concurrent 2 --mode full
+```
+
+期望：无错误结束，工作目录生成存储数据（向量库/状态文件），统计成功数>0。
+
+5. 代码质量
+
+```bash
+pre-commit run -a
+```
+
+期望：所有钩子通过。
