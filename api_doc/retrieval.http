@@ -1,0 +1,438 @@
+### LightRAG 检索集成 API 测试文档
+
+@Host = http://localhost:9621
+@token =
+
+### 1. 健康检查 - 验证服务器状态
+GET {{Host}}/api/v1/health
+
+### 预期返回结果
+{
+    "success": true,
+    "result": {
+        "status": "healthy",
+        "integrations": ["deer_flow"],
+        "version": "1.4.8"
+    },
+    "execution_time": 0.001,
+    "error": null
+}
+
+### 2. 单次检索 - 成功场景
+POST {{Host}}/api/v1/retrieve
+Content-Type: application/json
+
+{
+    "query": "什么是RAG",
+    "max_results": 10,
+    "min_score": 0.5,
+    "include_metadata": true,
+    "filters": {},
+    "integration_name": null
+}
+
+### 预期返回结果
+{
+    "success": true,
+    "result": {
+        "query": "什么是RAG",
+        "results": [
+            {
+                "content": "Retrieval Augmented Generation (RAG) 是一种结合检索和生成的人工智能技术...",
+                "score": 0.85,
+                "metadata": {
+                    "source": "document1.pdf",
+                    "page": 1,
+                    "chunk_id": "chunk_1"
+                }
+            }
+        ]
+    },
+    "execution_time": 0.250,
+    "error": null
+}
+
+### 3. 批量检索 - 成功场景
+POST {{Host}}/api/v1/batch
+Content-Type: application/json
+
+{
+    "queries": [
+        "什么是RAG",
+        "RAG的应用场景",
+        "如何实现RAG系统"
+    ],
+    "max_results_per_query": 5,
+    "min_score": 0.3,
+    "include_metadata": true,
+    "filters": {},
+    "integration_name": null
+}
+
+### 预期返回结果
+{
+    "success": true,
+    "result": {
+        "batch_results": [
+            {
+                "query": "什么是RAG",
+                "results": [...]
+            },
+            {
+                "query": "RAG的应用场景",
+                "results": [...]
+            },
+            {
+                "query": "如何实现RAG系统",
+                "results": [...]
+            }
+        ]
+    },
+    "execution_time": 0.750,
+    "error": null
+}
+
+### 4. 资源列举 - 文档类型
+POST {{Host}}/api/v1/resources
+Content-Type: application/json
+
+{
+    "resource_type": "document",
+    "limit": 20,
+    "offset": 0,
+    "filters": {
+        "status": "indexed"
+    },
+    "integration_name": null
+}
+
+### 预期返回结果
+{
+    "success": true,
+    "result": {
+        "resources": [
+            {
+                "id": "doc_001",
+                "type": "document",
+                "name": "RAG技术白皮书.pdf",
+                "metadata": {
+                    "size": 1024000,
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "status": "indexed"
+                }
+            }
+        ],
+        "total": 1,
+        "limit": 20,
+        "offset": 0
+    },
+    "execution_time": 0.150,
+    "error": null
+}
+
+### 5. 资源列举 - 文本块类型
+POST {{Host}}/api/v1/resources
+Content-Type: application/json
+
+{
+    "resource_type": "chunk",
+    "limit": 50,
+    "offset": 0,
+    "filters": {
+        "document_id": "doc_001"
+    },
+    "integration_name": null
+}
+
+### 预期返回结果
+{
+    "success": true,
+    "result": {
+        "resources": [
+            {
+                "id": "chunk_001",
+                "type": "chunk",
+                "name": "RAG技术白皮书 - 第1章",
+                "metadata": {
+                    "document_id": "doc_001",
+                    "chunk_index": 0,
+                    "token_count": 256
+                }
+            }
+        ],
+        "total": 1,
+        "limit": 50,
+        "offset": 0
+    },
+    "execution_time": 0.120,
+    "error": null
+}
+
+### 6. 获取单个资源 - 成功场景
+GET {{Host}}/api/v1/resources/doc_001?integration_name=null
+
+### 预期返回结果
+{
+    "success": true,
+    "result": {
+        "id": "doc_001",
+        "type": "document",
+        "name": "RAG技术白皮书.pdf",
+        "content": "完整的文档内容...",
+        "metadata": {
+            "size": 1024000,
+            "created_at": "2024-01-15T10:30:00Z",
+            "status": "indexed",
+            "chunk_count": 25
+        }
+    },
+    "execution_time": 0.100,
+    "error": null
+}
+
+### 7. 相似度计算 - 成功场景
+POST {{Host}}/api/v1/similarity
+Content-Type: application/json
+
+{
+    "text1": "Retrieval Augmented Generation",
+    "text2": "检索增强生成",
+    "integration_name": null
+}
+
+### 预期返回结果
+{
+    "success": true,
+    "result": 0.95,
+    "execution_time": 0.080,
+    "error": null
+}
+
+### 8. 相似度计算 - 不同语言
+POST {{Host}}/api/v1/similarity
+Content-Type: application/json
+
+{
+    "text1": "What is RAG technology",
+    "text2": "RAG技术是什么",
+    "integration_name": null
+}
+
+### 预期返回结果
+{
+    "success": true,
+    "result": 0.88,
+    "execution_time": 0.075,
+    "error": null
+}
+
+### 9. 集成列表 - 获取所有可用集成
+GET {{Host}}/api/v1/integrations
+
+### 预期返回结果
+{
+    "success": true,
+    "integrations": ["deer_flow"],
+    "integration_info": {
+        "deer_flow": {
+            "type": "deer_flow",
+            "is_enabled": true,
+            "is_default": true,
+            "config": {
+                "similarity_threshold": 0.5,
+                "default_mode": "mix",
+                "max_results": 10
+            }
+        }
+    }
+}
+
+### 10. 获取配置 - 当前集成配置
+GET {{Host}}/api/v1/config
+
+### 预期返回结果
+{
+    "success": true,
+    "config": {
+        "default_integration": "deer_flow",
+        "available_integrations": ["deer_flow"],
+        "settings": {
+            "similarity_threshold": 0.5,
+            "max_results": 10,
+            "timeout": 30
+        }
+    }
+}
+
+### 11. 单次检索 - 使用过滤条件
+POST {{Host}}/api/v1/retrieve
+Content-Type: application/json
+
+{
+    "query": "机器学习",
+    "max_results": 5,
+    "min_score": 0.6,
+    "include_metadata": true,
+    "filters": {
+        "document_type": "research_paper",
+        "year": 2024
+    },
+    "integration_name": null
+}
+
+### 12. 批量检索 - 限制结果数量
+POST {{Host}}/api/v1/batch
+Content-Type: application/json
+
+{
+    "queries": ["深度学习", "神经网络"],
+    "max_results_per_query": 3,
+    "min_score": 0.4,
+    "include_metadata": false,
+    "filters": {},
+    "integration_name": null
+}
+
+### 13. 资源列举 - 分页查询
+POST {{Host}}/api/v1/resources
+Content-Type: application/json
+
+{
+    "resource_type": "chunk",
+    "limit": 10,
+    "offset": 20,
+    "filters": {
+        "document_id": "doc_001"
+    },
+    "integration_name": null
+}
+
+### 14. 健康检查 - 特定集成
+GET {{Host}}/api/v1/health?integration_name=deer_flow
+
+### 15. 相似度计算 - 低相似度文本
+POST {{Host}}/api/v1/similarity
+Content-Type: application/json
+
+{
+    "text1": "人工智能技术",
+    "text2": "天气预报",
+    "integration_name": null
+}
+
+### 错误场景测试
+
+### 16. 单次检索 - 空查询
+POST {{Host}}/api/v1/retrieve
+Content-Type: application/json
+
+{
+    "query": "",
+    "max_results": 10,
+    "min_score": 0.5
+}
+
+### 预期错误返回
+{
+    "success": false,
+    "result": null,
+    "execution_time": 0.001,
+    "error": "Query cannot be empty"
+}
+
+### 17. 获取资源 - 不存在的资源ID
+GET {{Host}}/api/v1/resources/non_existent_doc
+
+### 预期错误返回
+{
+    "success": false,
+    "result": null,
+    "execution_time": 0.001,
+    "error": "Resource not found: non_existent_doc"
+}
+
+### 18. 相似度计算 - 空文本
+POST {{Host}}/api/v1/similarity
+Content-Type: application/json
+
+{
+    "text1": "",
+    "text2": "测试文本"
+}
+
+### 预期错误返回
+{
+    "success": false,
+    "result": null,
+    "execution_time": 0.001,
+    "error": "Text inputs cannot be empty"
+}
+
+### 性能测试
+
+### 19. 批量检索 - 大量查询
+POST {{Host}}/api/v1/batch
+Content-Type: application/json
+
+{
+    "queries": [
+        "什么是机器学习",
+        "深度学习的原理",
+        "神经网络的结构",
+        "自然语言处理",
+        "计算机视觉",
+        "强化学习",
+        "监督学习",
+        "无监督学习",
+        "半监督学习",
+        "迁移学习"
+    ],
+    "max_results_per_query": 2,
+    "min_score": 0.3,
+    "include_metadata": false,
+    "filters": {},
+    "integration_name": null
+}
+
+### 20. 资源列举 - 大量数据
+POST {{Host}}/api/v1/resources
+Content-Type: application/json
+
+{
+    "resource_type": "chunk",
+    "limit": 100,
+    "offset": 0,
+    "filters": {},
+    "integration_name": null
+}
+
+### 使用说明
+
+1. **环境准备**：
+   - 确保 LightRAG 服务器正在运行在默认端口 9621
+   - 如果服务器运行在其他端口，请修改 @Host 变量
+
+2. **认证配置**：
+   - 如果服务器启用了 API-Key 认证，请在请求头中添加：
+     ```
+     X-API-Key: your-api-key
+     ```
+   - 如果服务器启用了 JWT 认证，请在请求头中添加：
+     ```
+     Authorization: Bearer your-jwt-token
+     ```
+
+3. **测试工具**：
+   - 可以使用 VS Code 的 REST Client 扩展
+   - 或者使用 Postman 等API测试工具
+   - 或者使用 curl 命令行工具
+
+4. **测试顺序**：
+   - 建议按顺序执行测试，从健康检查开始
+   - 成功场景测试完成后，再进行错误场景测试
+   - 最后进行性能测试
+
+5. **结果验证**：
+   - 检查返回的 success 字段是否为 true
+   - 验证 execution_time 是否在合理范围内
+   - 确认 result 数据格式是否符合预期

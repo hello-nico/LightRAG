@@ -1,0 +1,25 @@
+{
+  "default_provider": "deer_flow",
+  "similarity_threshold": 0.5,
+  "default_mode": "mix",
+  "max_results": 10,
+  "deer_flow": {
+    "enabled": true,
+    "similarity_threshold": 0.5,
+    "default_mode": "mix",
+    "max_results": 10,
+    "auto_initialize": true
+  },
+  "integrations": {},
+  "batch_size": 10,
+  "timeout": 30.0,
+  "max_retries": 3,
+  "enable_cache": true,
+  "cache_ttl": 3600,
+  "cache_max_size": 1000,
+  "log_level": "INFO",
+  "enable_performance_logging": true,
+  "api_base_path": "/retrieval",
+  "enable_cors": true,
+  "cors_origins": ["*"]
+}

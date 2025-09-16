@@ -50,6 +50,10 @@ from lightrag.api.routers.document_routes import (
 from lightrag.api.routers.query_routes import create_query_routes
 from lightrag.api.routers.graph_routes import create_graph_routes
 from lightrag.api.routers.ollama_api import OllamaAPI
+from lightrag.integrations import (
+    initialize_global_integration_manager,
+    create_deer_flow_integration_config,
+)
 
 from lightrag.utils import logger, set_verbose_debug
 from lightrag.kg.shared_storage import (
@@ -212,6 +216,23 @@ def create_app(args):
 
             # Data migration regardless of storage implementation
             await rag.check_and_migrate_data()
+
+            # Initialize retrieval integrations
+            try:
+                integration_config = {
+                    "integrations": {
+                        "deer_flow": {
+                            "type": "deer_flow",
+                            "config": create_deer_flow_integration_config(rag),
+                            "is_default": True,
+                            "is_enabled": True
+                        }
+                    }
+                }
+                await initialize_global_integration_manager(integration_config)
+                logger.info("Retrieval integration manager initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize retrieval integration manager: {e}")
 
             pipeline_status = await get_namespace_data("pipeline_status")
 
@@ -672,6 +693,11 @@ def create_app(args):
     )
     app.include_router(create_query_routes(rag, api_key, args.top_k))
     app.include_router(create_graph_routes(rag, api_key))
+
+    # Add retrieval integration routes (will be initialized in lifespan)
+    from .routers.retrieval_routes import create_retrieval_routes
+    router, _ = create_retrieval_routes(rag, api_key)
+    app.include_router(router, prefix="/api/v1")
 
     # Add Ollama API routes
     ollama_api = OllamaAPI(rag, top_k=args.top_k, api_key=api_key)
