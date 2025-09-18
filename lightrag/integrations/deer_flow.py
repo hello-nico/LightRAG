@@ -71,13 +71,13 @@ class DeerFlowResource(BaseModel):
 
     uri: str = Field(..., description="The URI of the resource")
     title: str = Field(..., description="The title of the resource")
-    description: Optional[str] = Field("", description="The description of the resource")
+    description: Optional[str] = Field("lightrag workspace", description="The description of the resource")
 
 
 class DeerFlowRetriever:
     """DeerFlow 标准的检索器接口"""
 
-    def __init__(self, similarity_threshold: float = 0.5, default_mode: str = "mix", max_results: int = 20):
+    def __init__(self, similarity_threshold: float = 0.5, default_mode: str = "global", max_results: int = 20):
 
         self.similarity_threshold = similarity_threshold
         self.default_mode = default_mode
@@ -142,8 +142,8 @@ class DeerFlowRetriever:
         """将结构化关系数据转换为Relationship对象"""
         return Relationship(
             id=str(rel_data.get("id", "")),
-            source_entity_id=str(rel_data.get("source_entity_id", "")),
-            target_entity_id=str(rel_data.get("target_entity_id", "")),
+            source_entity_id=str(rel_data.get("entity1", "")),
+            target_entity_id=str(rel_data.get("entity2", "")),
             description=rel_data.get("description"),
         )
     

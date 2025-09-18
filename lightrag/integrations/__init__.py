@@ -6,7 +6,6 @@ LightRAG 检索集成模块
 
 from .models import (
     Document, Chunk, Entity, Relationship, RetrievalResult, RetrievalRequest)
-from .context_parser import ContextParser
 from .deer_flow import DeerFlowRetriever, DeerFlowResource, DeerFlowDocument, DeerFlowChunk
 
 
@@ -21,5 +20,4 @@ __all__ = [
     "Relationship",
     "RetrievalResult",
     "RetrievalRequest",
-    "ContextParser",
 ]
