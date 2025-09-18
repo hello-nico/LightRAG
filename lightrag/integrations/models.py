@@ -59,4 +59,3 @@ class RetrievalRequest(BaseModel):
     """检索请求模型"""
     query: str = Field(..., description="检索查询")
     max_results: int = Field(10, description="最大结果数")
-    min_score: Optional[float] = Field(None, description="最小分数阈值")

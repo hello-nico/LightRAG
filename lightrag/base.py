@@ -158,6 +158,11 @@ class QueryParam:
     Default is True to enable reranking when rerank model is available.
     """
 
+    return_structured: bool = False
+    """If True, returns structured data (dict) instead of formatted string when only_need_context is True.
+    The structured data contains entities, relationships, chunks, and metadata in a dictionary format.
+    """
+
 
 @dataclass
 class StorageNameSpace(ABC):

@@ -2978,11 +2978,27 @@ async def _build_query_context(
         if chunk_tracking_log:
             logger.info(f"chunks: {' '.join(chunk_tracking_log)}")
 
-    entities_str = json.dumps(entities_context, ensure_ascii=False)
-    relations_str = json.dumps(relations_context, ensure_ascii=False)
-    text_units_str = json.dumps(text_units_context, ensure_ascii=False)
+    # Check if structured data is requested
+    if query_param.return_structured:
+        return {
+            "entities": entities_context,
+            "relationships": relations_context,
+            "chunks": text_units_context,
+            "metadata": {
+                "total_entities": len(entities_context),
+                "total_relationships": len(relations_context),
+                "total_chunks": len(text_units_context),
+                "mode": query_param.mode,
+                "query": query
+            }
+        }
+    else:
+        # Return formatted string (original behavior)
+        entities_str = json.dumps(entities_context, ensure_ascii=False)
+        relations_str = json.dumps(relations_context, ensure_ascii=False)
+        text_units_str = json.dumps(text_units_context, ensure_ascii=False)
 
-    result = f"""-----Entities(KG)-----
+        result = f"""-----Entities(KG)-----
 
 ```json
 {entities_str}
@@ -3001,7 +3017,7 @@ async def _build_query_context(
 ```
 
 """
-    return result
+        return result
 
 
 async def _get_node_data(

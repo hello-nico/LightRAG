@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from lightrag import LightRAG
 from .config import LightRAGCoreConfig, load_core_config, load_prompts_from_file, merge_prompts_with_defaults
 
-logger = logging.getLogger(__name__)
+from lightrag.utils import logger
 
 
 class InstanceStatus(Enum):
@@ -173,7 +173,14 @@ class LightRAGInstanceManager:
         from lightrag.llm.openai import openai_complete_if_cache
         from lightrag.llm.qwen import qwen_embed
         from lightrag.utils import wrap_embedding_func_with_attrs
+        from lightrag.rerank import jina_rerank
         import numpy as np
+        
+        async def rerank_model_func(query, documents, top_n=None, 
+                                    api_key=config.rerank_api_key, model=config.rerank_model, base_url=config.rerank_base_url, extra_body=None):
+            return await jina_rerank(query, documents, top_n, api_key, model, base_url, extra_body)
+        logger.info(f"Rerank Provider: {config.rerank_binding}")
+        
         
         async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
             return await openai_complete_if_cache(
@@ -184,6 +191,7 @@ class LightRAGInstanceManager:
                 api_key=config.llm_api_key,
                 history_messages=history_messages,
                 **kwargs)
+        logger.info(f"LLM Provider: {config.llm_binding}")
             
         @wrap_embedding_func_with_attrs(embedding_dim=config.embedding_dimensions)
         async def embedding_func(texts: List[str]) -> np.ndarray:
@@ -193,12 +201,14 @@ class LightRAGInstanceManager:
                 base_url=config.embedding_base_url,
                 api_key=config.embedding_api_key,
                 dimensions=config.embedding_dimensions)
+        logger.info(f"Embedding Provider: {config.embedding_binding}")
 
         # Build instance with basic configuration
         rag_config = {
             "working_dir": config.working_dir,
             "llm_model_func": llm_model_func,
             "embedding_func": embedding_func,
+            "rerank_model_func": rerank_model_func,
         }
 
         # Add optional configuration

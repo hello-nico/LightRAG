@@ -48,6 +48,12 @@ class LightRAGCoreConfig:
     working_dir: str = "./rag_storage"
     input_dir: str = "./inputs"
     
+    # Rerank configuration
+    rerank_binding: str = "jina"
+    rerank_model: str = "jina-reranker-v2-base-multilingual"
+    rerank_base_url: str = "https://api.jina.ai/v1/rerank"
+    rerank_api_key: str = None
+    
     # LLM configuration
     llm_model: str = "grok-code-fast-1"
     llm_base_url: str = None
@@ -145,6 +151,12 @@ def load_core_config(
     config.embedding_api_key = get_env_value("EMBEDDING_BINDING_API_KEY", config.embedding_api_key)
     config.embedding_dimensions = get_env_value("EMBEDDING_DIM", config.embedding_dimensions)
     config.embedding_binding = get_env_value("EMBEDDING_BINDING", config.embedding_binding)
+    
+    # Load rerank configuration
+    config.rerank_binding = get_env_value("RERANK_BINDING", config.rerank_binding)
+    config.rerank_model = get_env_value("RERANK_MODEL", config.rerank_model)
+    config.rerank_base_url = get_env_value("RERANK_BINDING_HOST", config.rerank_base_url)
+    config.rerank_api_key = get_env_value("RERANK_BINDING_API_KEY", config.rerank_api_key)
 
     # Load storage configuration (optional, for CLI usage)
     config.kv_storage = get_env_value("LIGHTRAG_KV_STORAGE", config.kv_storage)
