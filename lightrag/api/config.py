@@ -444,7 +444,7 @@ def get_api_core_config():
 
         # Override with API-specific values from global_args
         api_config = {
-            "instance_name": get_env_value("LIGHTRAG_INSTANCE_NAME", "api_server"),
+            "instance_name": get_env_value("WORKSPACE", "default"),
             "auto_init": False,  # API handles initialization separately
             "working_dir": global_args.working_dir,
             "input_dir": global_args.input_dir,

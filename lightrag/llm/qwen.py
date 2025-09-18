@@ -31,7 +31,7 @@ from openai import (
     APITimeoutError,
 )
 
-
+@wrap_embedding_func_with_attrs(embedding_dim=1024)
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=4, max=60),
@@ -39,7 +39,7 @@ from openai import (
         (RateLimitError, APIConnectionError, APITimeoutError)
     ),
 )
-async def qwen_embedding(
+async def qwen_embed(
     texts: list[str],
     model: str = "text-embedding-v3",
     base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings",
@@ -166,27 +166,3 @@ async def qwen_embedding(
     except Exception as e:
         logger.error(f"Qwen embedding error: {e}")
         raise
-
-
-@wrap_embedding_func_with_attrs(embedding_dim=1536)
-async def qwen_embedding_func(
-    texts: list[str],
-    model: str = "text-embedding-v3",
-    base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings",
-    api_key: str = None,
-    dimensions: int = 1536,
-    **kwargs
-) -> np.ndarray:
-    """Qwen embedding function with standard LightRAG interface.
-    
-    This function is decorated with wrap_embedding_func_with_attrs to ensure
-    compatibility with LightRAG's embedding system.
-    """
-    return await qwen_embedding(
-        texts=texts,
-        model=model,
-        base_url=base_url,
-        api_key=api_key,
-        dimensions=dimensions,
-        **kwargs
-    )

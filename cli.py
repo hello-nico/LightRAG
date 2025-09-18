@@ -54,7 +54,7 @@ async def get_cli_instance(working_dir: Optional[str] = None):
         config = load_core_config()
 
     # 获取LightRAG实例
-    return await get_lightrag_instance(name="cli", config=config, auto_init=True)
+    return await get_lightrag_instance(config=config, auto_init=True)
 
 
 class PDFProcessor:

@@ -10,6 +10,8 @@ import logging
 from typing import Dict, Optional, Callable, Any, List
 from dataclasses import dataclass, field
 from enum import Enum
+import os
+from dotenv import load_dotenv
 
 from lightrag import LightRAG
 from .config import LightRAGCoreConfig, load_core_config, load_prompts_from_file, merge_prompts_with_defaults
@@ -169,7 +171,8 @@ class LightRAGInstanceManager:
     async def _default_builder(self, config: LightRAGCoreConfig) -> LightRAG:
         """Default builder for LightRAG instances"""
         from lightrag.llm.openai import openai_complete_if_cache
-        from lightrag.llm.qwen import qwen_embedding, wrap_embedding_func_with_attrs
+        from lightrag.llm.qwen import qwen_embed
+        from lightrag.utils import wrap_embedding_func_with_attrs
         import numpy as np
         
         async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
@@ -184,7 +187,7 @@ class LightRAGInstanceManager:
             
         @wrap_embedding_func_with_attrs(embedding_dim=config.embedding_dimensions)
         async def embedding_func(texts: List[str]) -> np.ndarray:
-            return await qwen_embedding(
+            return await qwen_embed(
                 texts=texts,
                 model=config.embedding_model,
                 base_url=config.embedding_base_url,
@@ -400,6 +403,11 @@ async def get_lightrag_instance(
     force_recreate: bool = False
 ) -> LightRAG:
     """Get or create a named LightRAG instance using the global manager"""
+    load_dotenv()
+    # 默认使用WORKSPACE环境变量作为实例名称
+    name = os.getenv("WORKSPACE", "") if name == "default" else name
+    if not name:
+        raise ValueError("WORKSPACE environment variable is not set")
     manager = get_global_manager()
     return await manager.get_instance(name, config, builder, auto_init, force_recreate)
 

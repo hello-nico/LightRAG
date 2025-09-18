@@ -143,7 +143,6 @@ class RAGPDFProcessor:
 
         # 获取或创建LightRAG实例
         self.lightrag_instance = await get_lightrag_instance(
-            name=self.config.instance_name,
             config=core_config,
             builder=create_qwen_embedding_rag,
             auto_init=self.config.auto_init,

@@ -26,90 +26,90 @@ from lightrag.integrations import (
 
 logger = logging.getLogger(__name__)
 
+router = APIRouter(tags=["retrieval"])
+
+# 请求/响应模型
+class RetrievalQueryRequest(BaseModel):
+    """检索查询请求"""
+    query: str = Field(..., min_length=1, description="检索查询文本")
+    max_results: int = Field(10, ge=1, le=100, description="最大结果数")
+    min_score: Optional[float] = Field(None, ge=0, le=1, description="最小分数阈值")
+    include_metadata: bool = Field(True, description="是否包含元数据")
+    filters: Dict[str, Any] = Field(default_factory=dict, description="过滤条件")
+    integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
+
+class RetrievalQueryResponse(BaseModel):
+    """检索查询响应"""
+    success: bool = Field(..., description="是否成功")
+    result: Optional[RetrievalResult] = Field(None, description="检索结果")
+    error: Optional[str] = Field(None, description="错误信息")
+    execution_time: float = Field(..., description="执行时间（秒）")
+
+class BatchRetrievalQueryRequest(BaseModel):
+    """批量检索查询请求"""
+    queries: List[str] = Field(..., min_items=1, max_items=100, description="查询列表")
+    max_results_per_query: int = Field(10, ge=1, le=100, description="每个查询的最大结果数")
+    min_score: Optional[float] = Field(None, ge=0, le=1, description="最小分数阈值")
+    include_metadata: bool = Field(True, description="是否包含元数据")
+    filters: Dict[str, Any] = Field(default_factory=dict, description="过滤条件")
+    integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
+
+class BatchRetrievalQueryResponse(BaseModel):
+    """批量检索查询响应"""
+    success: bool = Field(..., description="是否成功")
+    result: Optional[BatchRetrievalResponse] = Field(None, description="批量检索结果")
+    error: Optional[str] = Field(None, description="错误信息")
+    execution_time: float = Field(..., description="执行时间（秒）")
+
+class ListResourcesQueryRequest(BaseModel):
+    """列出资源请求"""
+    resource_type: Optional[ResourceType] = Field(None, description="资源类型过滤")
+    limit: int = Field(100, ge=1, le=1000, description="限制数量")
+    offset: int = Field(0, ge=0, description="偏移量")
+    filters: Dict[str, Any] = Field(default_factory=dict, description="过滤条件")
+    integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
+
+class ListResourcesQueryResponse(BaseModel):
+    """列出资源响应"""
+    success: bool = Field(..., description="是否成功")
+    result: Optional[ListResourcesResponse] = Field(None, description="资源列表")
+    error: Optional[str] = Field(None, description="错误信息")
+    execution_time: float = Field(..., description="执行时间（秒）")
+
+class GetResourceRequest(BaseModel):
+    """获取资源请求"""
+    resource_id: str = Field(..., description="资源ID")
+    integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
+
+class GetResourceResponse(BaseModel):
+    """获取资源响应"""
+    success: bool = Field(..., description="是否成功")
+    result: Optional[Resource] = Field(None, description="资源对象")
+    error: Optional[str] = Field(None, description="错误信息")
+    execution_time: float = Field(..., description="执行时间（秒）")
+
+class HealthCheckResponse(BaseModel):
+    """健康检查响应"""
+    success: bool = Field(..., description="是否成功")
+    result: Dict[str, Any] = Field(..., description="健康检查结果")
+    error: Optional[str] = Field(None, description="错误信息")
+    execution_time: float = Field(..., description="执行时间（秒）")
+
+class SimilarityRequest(BaseModel):
+    """相似度计算请求"""
+    text1: str = Field(..., min_length=1, description="第一个文本")
+    text2: str = Field(..., min_length=1, description="第二个文本")
+    integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
+
+class SimilarityResponse(BaseModel):
+    """相似度计算响应"""
+    success: bool = Field(..., description="是否成功")
+    result: Optional[float] = Field(None, description="相似度分数（0-1）")
+    error: Optional[str] = Field(None, description="错误信息")
+    execution_time: float = Field(..., description="执行时间（秒）")
+
 def create_retrieval_routes(rag, api_key: Optional[str] = None):
-    """创建检索路由，包含API-Key 鉴权配置"""
     combined_auth = get_combined_auth_dependency(api_key)
-    router = APIRouter(tags=["retrieval"])
-
-    # 请求/响应模型
-    class RetrievalQueryRequest(BaseModel):
-        """检索查询请求"""
-        query: str = Field(..., min_length=1, description="检索查询文本")
-        max_results: int = Field(10, ge=1, le=100, description="最大结果数")
-        min_score: Optional[float] = Field(None, ge=0, le=1, description="最小分数阈值")
-        include_metadata: bool = Field(True, description="是否包含元数据")
-        filters: Dict[str, Any] = Field(default_factory=dict, description="过滤条件")
-        integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
-
-    class RetrievalQueryResponse(BaseModel):
-        """检索查询响应"""
-        success: bool = Field(..., description="是否成功")
-        result: Optional[RetrievalResult] = Field(None, description="检索结果")
-        error: Optional[str] = Field(None, description="错误信息")
-        execution_time: float = Field(..., description="执行时间（秒）")
-
-    class BatchRetrievalQueryRequest(BaseModel):
-        """批量检索查询请求"""
-        queries: List[str] = Field(..., min_items=1, max_items=100, description="查询列表")
-        max_results_per_query: int = Field(10, ge=1, le=100, description="每个查询的最大结果数")
-        min_score: Optional[float] = Field(None, ge=0, le=1, description="最小分数阈值")
-        include_metadata: bool = Field(True, description="是否包含元数据")
-        filters: Dict[str, Any] = Field(default_factory=dict, description="过滤条件")
-        integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
-
-    class BatchRetrievalQueryResponse(BaseModel):
-        """批量检索查询响应"""
-        success: bool = Field(..., description="是否成功")
-        result: Optional[BatchRetrievalResponse] = Field(None, description="批量检索结果")
-        error: Optional[str] = Field(None, description="错误信息")
-        execution_time: float = Field(..., description="执行时间（秒）")
-
-    class ListResourcesQueryRequest(BaseModel):
-        """列出资源请求"""
-        resource_type: Optional[ResourceType] = Field(None, description="资源类型过滤")
-        limit: int = Field(100, ge=1, le=1000, description="限制数量")
-        offset: int = Field(0, ge=0, description="偏移量")
-        filters: Dict[str, Any] = Field(default_factory=dict, description="过滤条件")
-        integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
-
-    class ListResourcesQueryResponse(BaseModel):
-        """列出资源响应"""
-        success: bool = Field(..., description="是否成功")
-        result: Optional[ListResourcesResponse] = Field(None, description="资源列表")
-        error: Optional[str] = Field(None, description="错误信息")
-        execution_time: float = Field(..., description="执行时间（秒）")
-
-    class GetResourceRequest(BaseModel):
-        """获取资源请求"""
-        resource_id: str = Field(..., description="资源ID")
-        integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
-
-    class GetResourceResponse(BaseModel):
-        """获取资源响应"""
-        success: bool = Field(..., description="是否成功")
-        result: Optional[Resource] = Field(None, description="资源对象")
-        error: Optional[str] = Field(None, description="错误信息")
-        execution_time: float = Field(..., description="执行时间（秒）")
-
-    class HealthCheckResponse(BaseModel):
-        """健康检查响应"""
-        success: bool = Field(..., description="是否成功")
-        result: Dict[str, Any] = Field(..., description="健康检查结果")
-        error: Optional[str] = Field(None, description="错误信息")
-        execution_time: float = Field(..., description="执行时间（秒）")
-
-    class SimilarityRequest(BaseModel):
-        """相似度计算请求"""
-        text1: str = Field(..., min_length=1, description="第一个文本")
-        text2: str = Field(..., min_length=1, description="第二个文本")
-        integration_name: Optional[str] = Field(None, description="集成名称，留空使用默认集成")
-
-    class SimilarityResponse(BaseModel):
-        """相似度计算响应"""
-        success: bool = Field(..., description="是否成功")
-        result: Optional[float] = Field(None, description="相似度分数（0-1）")
-        error: Optional[str] = Field(None, description="错误信息")
-        execution_time: float = Field(..., description="执行时间（秒）")
 
     # 工具函数
     async def get_integration_manager():
@@ -127,7 +127,6 @@ def create_retrieval_routes(rag, api_key: Optional[str] = None):
         logger.error(f"Error in {func_name}: {error}")
         return f"Integration error in {func_name}: {error}"
 
-    # API 端点
     @router.post("/retrieve", response_model=RetrievalQueryResponse, dependencies=[Depends(combined_auth)])
     async def retrieve(
         request: RetrievalQueryRequest,
