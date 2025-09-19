@@ -42,6 +42,15 @@ class DeerFlowChunk:
     def __init__(self, content: str, similarity: float):
         self.content = content
         self.similarity = similarity
+        
+        
+class DeerFlowRetrievalResult(BaseModel):
+    """DeerFlow 标准的 RetrievalResult 类"""
+    query: str = Field(..., description="检索查询")
+    chunks: List[Chunk] = Field(default_factory=list, description="检索到的文本块")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="检索元数据")
+    total_results: int = Field(0, description="总结果数")
+    retrieval_time: Optional[float] = Field(None, description="检索耗时（秒）")
 
 
 class DeerFlowDocument:
@@ -77,7 +86,7 @@ class DeerFlowResource(BaseModel):
 class DeerFlowRetriever:
     """DeerFlow 标准的检索器接口"""
 
-    def __init__(self, similarity_threshold: float = 0.5, default_mode: str = "global", max_results: int = 20):
+    def __init__(self, similarity_threshold: float = 0.5, default_mode: str = "global", max_results: int = 3):
 
         self.similarity_threshold = similarity_threshold
         self.default_mode = default_mode
@@ -117,8 +126,8 @@ class DeerFlowRetriever:
         if instance_name:
             normalized_path = normalized.lstrip("/")
             if normalized_path:
-                return f"lightrag://{instance_name}/{normalized_path}"
-            return f"lightrag://{instance_name}"
+                return f"rag://{instance_name}/{normalized_path}"
+            return f"rag://{instance_name}"
         return normalized or None
 
     @staticmethod
@@ -159,7 +168,7 @@ class DeerFlowRetriever:
         """
         self.rag_instance = await get_lightrag_instance(auto_init=True)
         instance_names = await get_instance_names()
-        return [DeerFlowResource(uri=f"lightrag://{instance_name}", title=instance_name) for instance_name in instance_names]
+        return [DeerFlowResource(uri=f"rag://{instance_name}", title=instance_name) for instance_name in instance_names]
         
     async def retrieve(self, instance_name: str, request: RetrievalRequest) -> RetrievalResult:
         """
@@ -208,11 +217,9 @@ class DeerFlowRetriever:
                 "structured_data": isinstance(context_for_response, dict),
             }
 
-            return RetrievalResult(
+            return DeerFlowRetrievalResult(
                 query=request.query,
                 chunks=limited_chunks,
-                entities=entities,
-                relationships=relationships,
                 context=context_for_response,
                 metadata=metadata,
                 total_results=len(limited_chunks),

@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from lightrag.api.utils_api import get_combined_auth_dependency
-from lightrag.integrations import DeerFlowRetriever, RetrievalRequest, RetrievalResult
+from lightrag.integrations import DeerFlowRetriever, RetrievalRequest, DeerFlowRetrievalResult
 
 router = APIRouter(tags=["retrieval"])
 
@@ -25,7 +25,7 @@ class RetrievalQueryRequest(BaseModel):
 class RetrievalQueryResponse(BaseModel):
     """检索查询响应"""
     success: bool = Field(..., description="是否成功")
-    result: Optional[RetrievalResult] = Field(None, description="检索结果")
+    result: Optional[DeerFlowRetrievalResult] = Field(None, description="检索结果")
     error: Optional[str] = Field(None, description="错误信息")
     execution_time: float = Field(..., description="执行时间（秒）")
 

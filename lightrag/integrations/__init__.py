@@ -6,7 +6,7 @@ LightRAG 检索集成模块
 
 from .models import (
     Document, Chunk, Entity, Relationship, RetrievalResult, RetrievalRequest)
-from .deer_flow import DeerFlowRetriever, DeerFlowResource, DeerFlowDocument, DeerFlowChunk
+from .deer_flow import DeerFlowRetriever, DeerFlowResource, DeerFlowDocument, DeerFlowChunk, DeerFlowRetrievalResult
 
 
 __all__ = [
@@ -20,4 +20,5 @@ __all__ = [
     "Relationship",
     "RetrievalResult",
     "RetrievalRequest",
+    "DeerFlowRetrievalResult",
 ]

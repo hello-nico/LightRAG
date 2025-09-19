@@ -1,10 +1,9 @@
 
 ## 任务目标
 
-目前我们已经开发了一部分对接deer-flow的检索器，但是还存在一些问题，我们需要解决这些问题。
+目前我们已经开发了对接deer-flow的检索器，但是还存在一些问题，我们需要解决这些问题。
 
-1. deer-flow的document返回并不包含关系与实体
-2. deer-flow需要的document而且需要额外的url，title等信息作为可追溯的来源我们目前没有这种信息
+1. 基于目前开发的deer-flow检索器接口，集成到当前deer-flow的代码里，并确保能够正常工作。
 
 ## deer-flow的local search设计
 
@@ -479,3 +478,88 @@ You have access to two types of tools:
 - Always use the locale of **{{ locale }}** for the output.
 - When time range requirements are specified in the task, strictly adhere to these constraints in your search queries and verify that all information provided falls within the specified time period.
 ```
+
+## 现在基于deer-flow的检索器已经开发完成，并已经配置好了API接口
+
+@Host = <http://localhost:9621>
+
+### 1. 列出可用资源 - 获取 LightRAG 实例列表
+
+GET {{Host}}/api/v1/resources
+
+### 预期返回结果
+
+{
+    "success": true,
+    "resources": [
+        {
+            "uri": "lightrag://default",
+            "title": "default"
+        }
+    ],
+    "error": null,
+    "execution_time": 0.001
+}
+
+### 2. 单次检索 - 成功场景
+
+POST {{Host}}/api/v1/retrieve
+Content-Type: application/json
+
+{
+    "query": "什么是RAG",
+    "max_results": 10,
+    "resources": ["lightrag://space1"]
+}
+
+### 预期返回结果
+
+{
+    "success": true,
+    "result": {
+        "query": "什么是RAG",
+        "chunks": [
+            {
+                "id": "chunk_1",
+                "doc_id": "document1.pdf",
+                "content": "Retrieval Augmented Generation (RAG) 是一种结合检索和生成的人工智能技术...",
+                "chunk_index": 0,
+                "score": 0.85,
+                "similarity": 0.85
+            }
+        ],
+        "entities": [
+            {
+                "id": "entity_1",
+                "entity": "RAG",
+                "type": "technology",
+                "description": "检索增强生成技术"
+            }
+        ],
+        "relationships": [
+            {
+                "id": "rel_1",
+                "source_entity_id": "entity_1",
+                "target_entity_id": "entity_2",
+                "description": "RAG 包含检索和生成两个组件"
+            }
+        ],
+        "context": {
+            "chunks": [...],
+            "entities": [...],
+            "relationships": [...]
+        },
+        "metadata": {
+            "instance": "default",
+            "mode": "mix",
+            "top_k": 20,
+            "chunk_top_k": 10,
+            "retrieved_chunks": 1,
+            "structured_data": true
+        },
+        "total_results": 1,
+        "retrieval_time": 0.250
+    },
+    "error": null,
+    "execution_time": 0.250
+}
