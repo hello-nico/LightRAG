@@ -25,8 +25,9 @@ Content-Type: application/json
 
 {
     "query": "什么是RAG",
-    "max_results": 3,
-    "resources": ["rag://space1"]
+    "max_results": 10,
+    "resources": ["rag://space1"],
+    "background_search": true
 }
 
 ### 预期返回结果

@@ -6,8 +6,58 @@ import json
 import re
 import os
 import json_repair
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, NamedTuple
 from collections import Counter, defaultdict
+
+class ContextPayload(NamedTuple):
+    """Context payload containing both text and structured data."""
+
+    text: str
+    structured: dict | None
+
+
+def _format_structured_context(structured: dict | None) -> str:
+    """将结构化检索结果按既有格式转回文本表示。"""
+
+    if not structured:
+        return ""
+
+    entities_str = json.dumps(structured.get("entities", []), ensure_ascii=False)
+    relations_str = json.dumps(structured.get("relationships", []), ensure_ascii=False)
+    text_units_str = json.dumps(structured.get("chunks", []), ensure_ascii=False)
+
+    return (
+        "-----Entities(KG)-----\n\n" +
+        "```json\n" +
+        f"{entities_str}\n" +
+        "```\n\n" +
+        "-----Relationships(KG)-----\n\n" +
+        "```json\n" +
+        f"{relations_str}\n" +
+        "```\n\n" +
+        "-----Document Chunks(DC)-----\n\n" +
+        "```json\n" +
+        f"{text_units_str}\n" +
+        "```\n\n"
+    )
+
+
+def _build_empty_structured_payload(query: str, mode: str) -> dict[str, Any]:
+    """生成空的结构化检索占位数据。"""
+
+    return {
+        "entities": [],
+        "relationships": [],
+        "chunks": [],
+        "metadata": {
+            "total_entities": 0,
+            "total_relationships": 0,
+            "total_chunks": 0,
+            "mode": mode,
+            "query": query,
+        },
+    }
+
 
 from .utils import (
     logger,
@@ -2108,7 +2158,7 @@ async def kg_query(
     hashing_kv: BaseKVStorage | None = None,
     system_prompt: str | None = None,
     chunks_vdb: BaseVectorStorage = None,
-) -> str | AsyncIterator[str]:
+) -> str | AsyncIterator[str] | dict:
     if not query:
         return PROMPTS["fail_response"]
 
@@ -2133,11 +2183,19 @@ async def kg_query(
         query_param.ll_keywords or [],
         query_param.user_prompt or "",
         query_param.enable_rerank,
+        query_param.include_sources,
+        query_param.return_structured,
     )
     cached_response = await handle_cache(
         hashing_kv, args_hash, query, query_param.mode, cache_type="query"
     )
     if cached_response is not None:
+        # include_sources/return_structured 的缓存均以 JSON 字符串保存
+        if query_param.include_sources or query_param.return_structured:
+            try:
+                return json.loads(cached_response)
+            except (json.JSONDecodeError, TypeError):
+                return cached_response
         return cached_response
 
     hl_keywords, ll_keywords = await get_keywords_from_query(
@@ -2163,7 +2221,7 @@ async def kg_query(
     hl_keywords_str = ", ".join(hl_keywords) if hl_keywords else ""
 
     # Build context
-    context = await _build_query_context(
+    context_result = await _build_query_context(
         query,
         ll_keywords_str,
         hl_keywords_str,
@@ -2175,8 +2233,34 @@ async def kg_query(
         chunks_vdb,
     )
 
+    # Handle different context result types
+    structured_data: dict[str, Any] | None = None
+    if isinstance(context_result, ContextPayload):
+        context = context_result.text
+        structured_data = context_result.structured
+    elif isinstance(context_result, dict):
+        structured_data = context_result
+        context = _format_structured_context(structured_data)
+    else:
+        context = context_result
+
+    if context is None:
+        context = ""
+
+    structured_payload = (
+        structured_data
+        if structured_data is not None
+        else _build_empty_structured_payload(query, query_param.mode)
+    )
+
     if query_param.only_need_context:
-        return context if context is not None else PROMPTS["fail_response"]
+        if query_param.return_structured:
+            return structured_payload
+
+        if query_param.include_sources:
+            return {"context": context, "sources": structured_payload}
+
+        return context if context else PROMPTS["fail_response"]
     if context is None:
         return PROMPTS["fail_response"]
 
@@ -2216,9 +2300,24 @@ async def kg_query(
         stream=query_param.stream,
         enable_cot=True,
     )
-    if isinstance(response, str) and len(response) > len(sys_prompt):
-        response = (
-            response.replace(sys_prompt, "")
+
+    needs_structured_output = query_param.include_sources or query_param.return_structured
+    answer_text: str | None = None
+    if isinstance(response, str):
+        answer_text = response
+    elif needs_structured_output and hasattr(response, "__aiter__"):
+        chunks: list[str] = []
+        async for piece in response:
+            chunks.append(piece)
+        answer_text = "".join(chunks)
+    elif needs_structured_output:
+        logger.warning(
+            "Structured output requested but model returned non-string response; falling back to raw response"
+        )
+
+    if answer_text is not None and len(answer_text) > len(sys_prompt):
+        answer_text = (
+            answer_text.replace(sys_prompt, "")
             .replace("user", "")
             .replace("model", "")
             .replace(query, "")
@@ -2227,21 +2326,53 @@ async def kg_query(
             .strip()
         )
 
-    if hashing_kv.global_config.get("enable_llm_cache"):
-        # Save to cache with query parameters
-        queryparam_dict = {
-            "mode": query_param.mode,
-            "response_type": query_param.response_type,
-            "top_k": query_param.top_k,
-            "chunk_top_k": query_param.chunk_top_k,
-            "max_entity_tokens": query_param.max_entity_tokens,
-            "max_relation_tokens": query_param.max_relation_tokens,
-            "max_total_tokens": query_param.max_total_tokens,
-            "hl_keywords": query_param.hl_keywords or [],
-            "ll_keywords": query_param.ll_keywords or [],
-            "user_prompt": query_param.user_prompt or "",
-            "enable_rerank": query_param.enable_rerank,
-        }
+    cache_enabled = hashing_kv.global_config.get("enable_llm_cache")
+    queryparam_dict = {
+        "mode": query_param.mode,
+        "response_type": query_param.response_type,
+        "top_k": query_param.top_k,
+        "chunk_top_k": query_param.chunk_top_k,
+        "max_entity_tokens": query_param.max_entity_tokens,
+        "max_relation_tokens": query_param.max_relation_tokens,
+        "max_total_tokens": query_param.max_total_tokens,
+        "hl_keywords": query_param.hl_keywords or [],
+        "ll_keywords": query_param.ll_keywords or [],
+        "user_prompt": query_param.user_prompt or "",
+        "enable_rerank": query_param.enable_rerank,
+        "include_sources": query_param.include_sources,
+        "return_structured": query_param.return_structured,
+    }
+
+    if answer_text is not None:
+        if query_param.include_sources or query_param.return_structured:
+            final_dict: dict[str, Any] = {**structured_payload}
+            final_dict["answer"] = answer_text
+            final_dict.setdefault("context", context)
+            final_response: Any = final_dict
+        else:
+            final_response = answer_text
+
+        if cache_enabled:
+            cache_content = (
+                json.dumps(final_response, ensure_ascii=False)
+                if isinstance(final_response, dict)
+                else final_response
+            )
+            await save_to_cache(
+                hashing_kv,
+                CacheData(
+                    args_hash=args_hash,
+                    content=cache_content,
+                    prompt=query,
+                    mode=query_param.mode,
+                    cache_type="query",
+                    queryparam=queryparam_dict,
+                ),
+            )
+
+        return final_response
+
+    if cache_enabled:
         await save_to_cache(
             hashing_kv,
             CacheData(
@@ -2978,20 +3109,22 @@ async def _build_query_context(
         if chunk_tracking_log:
             logger.info(f"chunks: {' '.join(chunk_tracking_log)}")
 
-    # Check if structured data is requested
-    if query_param.return_structured:
-        return {
-            "entities": entities_context,
-            "relationships": relations_context,
-            "chunks": text_units_context,
-            "metadata": {
-                "total_entities": len(entities_context),
-                "total_relationships": len(relations_context),
-                "total_chunks": len(text_units_context),
-                "mode": query_param.mode,
-                "query": query
-            }
+    # Check if structured data is requested or include_sources is True
+    structured_data = {
+        "entities": entities_context,
+        "relationships": relations_context,
+        "chunks": text_units_context,
+        "metadata": {
+            "total_entities": len(entities_context),
+            "total_relationships": len(relations_context),
+            "total_chunks": len(text_units_context),
+            "mode": query_param.mode,
+            "query": query
         }
+    }
+
+    if query_param.return_structured:
+        return structured_data
     else:
         # Return formatted string (original behavior)
         entities_str = json.dumps(entities_context, ensure_ascii=False)
@@ -3017,7 +3150,11 @@ async def _build_query_context(
 ```
 
 """
-        return result
+        # If include_sources is True, return both text and structured data
+        if query_param.include_sources:
+            return ContextPayload(text=result, structured=structured_data)
+        else:
+            return result
 
 
 async def _get_node_data(
@@ -3599,7 +3736,7 @@ async def naive_query(
     global_config: dict[str, str],
     hashing_kv: BaseKVStorage | None = None,
     system_prompt: str | None = None,
-) -> str | AsyncIterator[str]:
+) -> str | AsyncIterator[str] | dict:
     if query_param.model_func:
         use_model_func = query_param.model_func
     else:
@@ -3621,11 +3758,19 @@ async def naive_query(
         query_param.ll_keywords or [],
         query_param.user_prompt or "",
         query_param.enable_rerank,
+        query_param.include_sources,
+        query_param.return_structured,
     )
     cached_response = await handle_cache(
         hashing_kv, args_hash, query, query_param.mode, cache_type="query"
     )
     if cached_response is not None:
+        # include_sources/return_structured 的缓存均以 JSON 字符串保存
+        if query_param.include_sources or query_param.return_structured:
+            try:
+                return json.loads(cached_response)
+            except (json.JSONDecodeError, TypeError):
+                return cached_response
         return cached_response
 
     tokenizer: Tokenizer = global_config["tokenizer"]
@@ -3711,8 +3856,21 @@ async def naive_query(
         )
 
     text_units_str = json.dumps(text_units_context, ensure_ascii=False)
-    if query_param.only_need_context:
-        return f"""
+
+    structured_payload = {
+        "entities": [],
+        "relationships": [],
+        "chunks": text_units_context,
+        "metadata": {
+            "total_entities": 0,
+            "total_relationships": 0,
+            "total_chunks": len(text_units_context),
+            "mode": query_param.mode,
+            "query": query,
+        },
+    }
+
+    context_block = f"""
 ---Document Chunks(DC)---
 
 ```json
@@ -3720,6 +3878,15 @@ async def naive_query(
 ```
 
 """
+
+    if query_param.only_need_context:
+        if query_param.return_structured:
+            return structured_payload
+
+        if query_param.include_sources:
+            return {"context": context_block, "sources": structured_payload}
+
+        return context_block
     # Process conversation history
     history_context = ""
     if query_param.conversation_history:
@@ -3756,9 +3923,23 @@ async def naive_query(
         enable_cot=True,
     )
 
-    if isinstance(response, str) and len(response) > len(sys_prompt):
-        response = (
-            response[len(sys_prompt) :]
+    needs_structured_output = query_param.include_sources or query_param.return_structured
+    answer_text: str | None = None
+    if isinstance(response, str):
+        answer_text = response
+    elif needs_structured_output and hasattr(response, "__aiter__"):
+        chunks_collected: list[str] = []
+        async for piece in response:
+            chunks_collected.append(piece)
+        answer_text = "".join(chunks_collected)
+    elif needs_structured_output:
+        logger.warning(
+            "Structured output requested but model returned non-string response; falling back to raw response"
+        )
+
+    if answer_text is not None and len(answer_text) > len(sys_prompt):
+        answer_text = (
+            answer_text[len(sys_prompt) :]
             .replace(sys_prompt, "")
             .replace("user", "")
             .replace("model", "")
@@ -3768,21 +3949,53 @@ async def naive_query(
             .strip()
         )
 
-    if hashing_kv.global_config.get("enable_llm_cache"):
-        # Save to cache with query parameters
-        queryparam_dict = {
-            "mode": query_param.mode,
-            "response_type": query_param.response_type,
-            "top_k": query_param.top_k,
-            "chunk_top_k": query_param.chunk_top_k,
-            "max_entity_tokens": query_param.max_entity_tokens,
-            "max_relation_tokens": query_param.max_relation_tokens,
-            "max_total_tokens": query_param.max_total_tokens,
-            "hl_keywords": query_param.hl_keywords or [],
-            "ll_keywords": query_param.ll_keywords or [],
-            "user_prompt": query_param.user_prompt or "",
-            "enable_rerank": query_param.enable_rerank,
-        }
+    cache_enabled = hashing_kv.global_config.get("enable_llm_cache")
+    queryparam_dict = {
+        "mode": query_param.mode,
+        "response_type": query_param.response_type,
+        "top_k": query_param.top_k,
+        "chunk_top_k": query_param.chunk_top_k,
+        "max_entity_tokens": query_param.max_entity_tokens,
+        "max_relation_tokens": query_param.max_relation_tokens,
+        "max_total_tokens": query_param.max_total_tokens,
+        "hl_keywords": query_param.hl_keywords or [],
+        "ll_keywords": query_param.ll_keywords or [],
+        "user_prompt": query_param.user_prompt or "",
+        "enable_rerank": query_param.enable_rerank,
+        "include_sources": query_param.include_sources,
+        "return_structured": query_param.return_structured,
+    }
+
+    if answer_text is not None:
+        if query_param.include_sources or query_param.return_structured:
+            final_dict: dict[str, Any] = {**structured_payload}
+            final_dict["answer"] = answer_text
+            final_dict.setdefault("context", context_block)
+            final_response: Any = final_dict
+        else:
+            final_response = answer_text
+
+        if cache_enabled:
+            cache_content = (
+                json.dumps(final_response, ensure_ascii=False)
+                if isinstance(final_response, dict)
+                else final_response
+            )
+            await save_to_cache(
+                hashing_kv,
+                CacheData(
+                    args_hash=args_hash,
+                    content=cache_content,
+                    prompt=query,
+                    mode=query_param.mode,
+                    cache_type="query",
+                    queryparam=queryparam_dict,
+                ),
+            )
+
+        return final_response
+
+    if cache_enabled:
         await save_to_cache(
             hashing_kv,
             CacheData(

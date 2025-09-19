@@ -5,7 +5,7 @@
 - `lightrag/` — core library (retrieval, graph/vector storage, utils). API under `lightrag/api/` with FastAPI routes and `webui/` assets; console entrypoints: `lightrag-server`, `lightrag-gunicorn`.
 - `cli.py` — CLI app (query modes + PDF extract). Uses core instance manager.
 - `tests/` — script-style tests: `test_graph_storage.py`, `test_lightrag_ollama_chat.py`.
-- `docs/` — docs and notes (see `docs/cli_improve.md`).
+- `docs/` — docs和实现说明，核心流程参见 `docs/query_flow.md`，CLI 相关调整见 `docs/cli_improve.md`。
 - Runtime data defaults: `inputs/` (ingest) and `rag_storage/` (generated storage).
 
 ## Build, Test, and Development Commands

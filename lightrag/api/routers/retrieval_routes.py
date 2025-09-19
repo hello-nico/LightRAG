@@ -3,15 +3,14 @@ LightRAG 检索集成 API 路由
 
 此模块提供了基于 DeerFlowRetriever 的检索接口。
 """
-import resource
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional, Union
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from lightrag.api.utils_api import get_combined_auth_dependency
-from lightrag.integrations import DeerFlowRetriever, RetrievalRequest, DeerFlowRetrievalResult
+from lightrag.integrations import DeerFlowRetriever, RetrievalRequest, DeerFlowRetrievalResult, BackgroundRetrievalResult
 
 router = APIRouter(tags=["retrieval"])
 
@@ -21,11 +20,13 @@ class RetrievalQueryRequest(BaseModel):
     query: str = Field(..., min_length=1, description="检索查询文本")
     max_results: int = Field(10, ge=1, le=100, description="最大结果数")
     resources: List[str] = Field(default_factory=list, description="资源列表")
+    local_search: bool = Field(False, description="是否使用本地检索")
+    background_search: bool = Field(False, description="是否使用背景检索")
 
 class RetrievalQueryResponse(BaseModel):
     """检索查询响应"""
     success: bool = Field(..., description="是否成功")
-    result: Optional[DeerFlowRetrievalResult] = Field(None, description="检索结果")
+    result: Optional[Union[DeerFlowRetrievalResult, BackgroundRetrievalResult]] = Field(None, description="检索结果")
     error: Optional[str] = Field(None, description="错误信息")
     execution_time: float = Field(..., description="执行时间（秒）")
 
@@ -68,12 +69,13 @@ def create_retrieval_routes(api_key: Optional[str] = None):
             # 构建检索请求
             retrieval_request = RetrievalRequest(
                 query=request.query,
-                max_results=request.max_results
+                max_results=request.max_results,
+                local_search=request.local_search,
+                background_search=request.background_search
             )
             # todo 当前只能返回一个资源实例列表
             resource_instances = []
             for r in request.resources:
-                print(r)
                 all_resources = await retriever.list_resources()
                 for resource in all_resources:
                     if resource.uri == r:

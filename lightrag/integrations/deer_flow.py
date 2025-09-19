@@ -5,9 +5,8 @@ LightRAG DeerFlow 集成实现
 相似度计算、资源列举等功能。
 """
 
-import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -25,6 +24,13 @@ from .models import (
 
 from lightrag.utils import logger
 
+
+class BackgroundRetrievalResult(BaseModel):
+    """BackgroundRetrievalResult is a class that represents a background retrieval result."""
+    background: str = Field(..., description="The background of the resource")
+    entities: List[Dict[str, Any]] = Field(..., description="The entities of the resource")
+    relationships: List[Dict[str, Any]] = Field(..., description="The relationships of the resource")
+    metadata: Dict[str, Any] = Field(..., description="The metadata of the resource")
 
 class ResourceRequest(BaseModel):
     """ResourceRequest is a class that represents a resource request."""
@@ -50,7 +56,6 @@ class DeerFlowRetrievalResult(BaseModel):
     chunks: List[Chunk] = Field(default_factory=list, description="检索到的文本块")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="检索元数据")
     total_results: int = Field(0, description="总结果数")
-    retrieval_time: Optional[float] = Field(None, description="检索耗时（秒）")
 
 
 class DeerFlowDocument:
@@ -86,7 +91,7 @@ class DeerFlowResource(BaseModel):
 class DeerFlowRetriever:
     """DeerFlow 标准的检索器接口"""
 
-    def __init__(self, similarity_threshold: float = 0.5, default_mode: str = "global", max_results: int = 3):
+    def __init__(self, similarity_threshold: float = 0.5, default_mode: str = "mix", max_results: int = 3):
 
         self.similarity_threshold = similarity_threshold
         self.default_mode = default_mode
@@ -169,62 +174,79 @@ class DeerFlowRetriever:
         self.rag_instance = await get_lightrag_instance(auto_init=True)
         instance_names = await get_instance_names()
         return [DeerFlowResource(uri=f"rag://{instance_name}", title=instance_name) for instance_name in instance_names]
+    
+    def _background_retrieve(self, query: str, query_param: QueryParam, raw_response: Dict[str, Any]) -> BackgroundRetrievalResult:
+        """
+        Background retrieve
+        """
+        metadata: Dict[str, Any] = {
+            "query": query,
+            "mode": query_param.mode,
+            "top_k": query_param.top_k,
+            "chunk_top_k": query_param.chunk_top_k,
+            "retrieved_chunks": len(raw_response["chunks"])
+        }
+        return BackgroundRetrievalResult(
+            background=raw_response["answer"],
+            entities=raw_response["entities"],
+            relationships=raw_response["relationships"],
+            metadata=metadata
+        )
         
-    async def retrieve(self, instance_name: str, request: RetrievalRequest) -> RetrievalResult:
+    def _local_retrieve(self, query: str, query_param: QueryParam, raw_response: Dict[str, Any]) -> RetrievalResult:
+        """
+        Local retrieve
+        """
+        # 结构化数据格式
+        limited_chunks = [
+            self._convert_to_chunk(chunk_data, idx)
+            for idx, chunk_data in enumerate(raw_response["chunks"][:query_param.top_k])
+        ]
+
+        metadata: Dict[str, Any] = {
+            "query": query,
+            "mode": query_param.mode,
+            "top_k": query_param.top_k,
+            "chunk_top_k": query_param.chunk_top_k,
+            "retrieved_chunks": len(limited_chunks)
+        }
+
+        return DeerFlowRetrievalResult(
+            query=query,
+            chunks=limited_chunks,
+            metadata=metadata,
+            total_results=len(limited_chunks)
+        )
+        
+    async def retrieve(self, instance_name: str, request: RetrievalRequest) -> Union[BackgroundRetrievalResult, RetrievalResult]:
         """
         执行检索
         """
         try:
+            param_kwargs = {}
+            # 判断检索类型
+            if request.local_search:
+                mode = "local"
+                param_kwargs["only_need_context"] = True
+                param_kwargs["return_structured"] = True
+                retrieval_func = self._local_retrieve
+            else:
+                mode = "global"
+                param_kwargs["include_sources"] = True
+                param_kwargs["return_structured"] = True
+                retrieval_func = self._background_retrieve
+            
             rag_instance = await get_lightrag_instance(instance_name)
             await rag_instance.initialize_storages()
             await initialize_pipeline_status()
             top_k = request.max_results
-            param_kwargs = {}
-            param_kwargs.setdefault("mode", self.default_mode)
-            param_kwargs.setdefault("top_k", top_k * 2)
-            param_kwargs.setdefault("chunk_top_k", top_k)
-            param_kwargs["only_need_context"] = True
-            param_kwargs["return_structured"] = True  # 使用结构化数据返回
-
+            param_kwargs.setdefault("mode", mode)
+            param_kwargs.setdefault("top_k", top_k)
+            param_kwargs.setdefault("chunk_top_k", top_k) 
             query_param = QueryParam(**param_kwargs)
 
-            start_time = time.perf_counter()
             raw_response = await rag_instance.aquery(request.query, param=query_param)
-
-            # 结构化数据格式
-            limited_chunks = [
-                self._convert_to_chunk(chunk_data, idx)
-                for idx, chunk_data in enumerate(raw_response["chunks"][:top_k])
-            ]
-            entities = [
-                self._convert_to_entity(entity_data)
-                for entity_data in raw_response["entities"]
-            ]
-            relationships = [
-                self._convert_to_relationship(rel_data)
-                for rel_data in raw_response["relationships"]
-            ]
-            context_for_response = raw_response
-
-            retrieval_time = time.perf_counter() - start_time
-
-            metadata: Dict[str, Any] = {
-                "instance": instance_name,
-                "mode": query_param.mode,
-                "top_k": query_param.top_k,
-                "chunk_top_k": query_param.chunk_top_k,
-                "retrieved_chunks": len(limited_chunks),
-                "structured_data": isinstance(context_for_response, dict),
-            }
-
-            return DeerFlowRetrievalResult(
-                query=request.query,
-                chunks=limited_chunks,
-                context=context_for_response,
-                metadata=metadata,
-                total_results=len(limited_chunks),
-                retrieval_time=retrieval_time,
-            )
+            return retrieval_func(request.query, query_param, raw_response)
 
         except Exception as exc:
             logger.error(f"Retrieval failed: {exc}")

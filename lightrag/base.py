@@ -163,6 +163,12 @@ class QueryParam:
     The structured data contains entities, relationships, chunks, and metadata in a dictionary format.
     """
 
+    include_sources: bool = False
+    """If True, returns both the answer and sources information in a dictionary format.
+    The sources data contains entities, relationships, chunks, and metadata used to generate the answer.
+    When False (default), only the answer string is returned.
+    """
+
 
 @dataclass
 class StorageNameSpace(ABC):

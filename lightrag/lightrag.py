@@ -2037,7 +2037,7 @@ class LightRAG:
         query: str,
         param: QueryParam = QueryParam(),
         system_prompt: str | None = None,
-    ) -> str | Iterator[str]:
+    ) -> str | Iterator[str] | dict:
         """
         Perform a sync query.
 
@@ -2058,7 +2058,7 @@ class LightRAG:
         query: str,
         param: QueryParam = QueryParam(),
         system_prompt: str | None = None,
-    ) -> str | AsyncIterator[str]:
+    ) -> str | AsyncIterator[str] | dict:
         """
         Perform a async query.
 

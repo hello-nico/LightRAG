@@ -59,3 +59,5 @@ class RetrievalRequest(BaseModel):
     """检索请求模型"""
     query: str = Field(..., description="检索查询")
     max_results: int = Field(10, description="最大结果数")
+    local_search: bool = Field(False, description="是否使用本地检索")
+    background_search: bool = Field(False, description="是否使用背景检索")

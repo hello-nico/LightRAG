@@ -4,6 +4,7 @@ LightRAG CLI 工具
 """
 import asyncio
 import typer
+import json
 from lightrag import QueryParam
 from lightrag.core import get_lightrag_instance, load_core_config
 from lightrag.tools.pdf_reader import PDFExtractor
@@ -235,7 +236,8 @@ def query(
     query_text: str = typer.Argument(..., help="查询文本"),
     mode: str = typer.Option("local", "--mode", "-q", help="查询模式: local, global, hybrid, naive, mix, bypass"),
     model: str = typer.Option("grok-code-fast-1", "--model", "-m", help="使用的模型名称"),
-    stream: bool = typer.Option(True, "--stream/--no-stream", "-s/-ns", help="是否使用流式输出，默认为True")
+    stream: bool = typer.Option(True, "--stream/--no-stream", "-s/-ns", help="是否使用流式输出，默认为True"),
+    include_sources: bool = typer.Option(False, "--include-sources", "--sources", help="是否包含检索源信息，默认为False")
 ):
     """
     执行查询
@@ -261,12 +263,17 @@ def query(
 
         if stream:
             typer.echo("💬 查询结果 (流式输出):")
-            asyncio.run(execute_streaming_query(query_text, mode, args))
+            asyncio.run(execute_streaming_query(query_text, mode, args, include_sources))
         else:
             typer.echo("⏳ 正在查询...")
-            result = asyncio.run(execute_query(query_text, mode, args))
+            result = asyncio.run(execute_query(query_text, mode, args, include_sources))
             typer.echo("💬 查询结果:")
-            typer.echo(result)
+            if include_sources and isinstance(result, dict):
+                typer.echo(f"📄 答案: {result['answer']}")
+                typer.echo("🔍 检索源信息:")
+                typer.echo(json.dumps(result['sources'], indent=2, ensure_ascii=False))
+            else:
+                typer.echo(result)
 
     except Exception as e:
         typer.echo(f"❌ 查询失败: {e}", err=True)
@@ -376,7 +383,7 @@ def version():
     typer.echo("🔧 新增PDF处理功能")
 
 
-async def execute_query(query_text: str, mode: str, args: Args) -> str:
+async def execute_query(query_text: str, mode: str, args: Args, include_sources: bool = False) -> str | dict:
     """
     执行查询
 
@@ -384,6 +391,7 @@ async def execute_query(query_text: str, mode: str, args: Args) -> str:
         query_text: 查询文本
         mode: 查询模式
         args: 参数对象
+        include_sources: 是否包含检索源信息
 
     Returns:
         查询结果
@@ -399,7 +407,7 @@ async def execute_query(query_text: str, mode: str, args: Args) -> str:
         print(f"设置模型: {os.environ['LLM_MODEL']}")
 
     # 创建查询参数，禁用流式输出
-    param = QueryParam(mode=mode, stream=False)
+    param = QueryParam(mode=mode, stream=False, include_sources=include_sources)
 
     # 执行查询
     try:
@@ -409,7 +417,7 @@ async def execute_query(query_text: str, mode: str, args: Args) -> str:
         raise RuntimeError(f"查询执行失败: {e}")
 
 
-async def execute_streaming_query(query_text: str, mode: str, args: Args):
+async def execute_streaming_query(query_text: str, mode: str, args: Args, include_sources: bool = False):
     """
     执行流式查询
 
@@ -417,6 +425,7 @@ async def execute_streaming_query(query_text: str, mode: str, args: Args):
         query_text: 查询文本
         mode: 查询模式
         args: 参数对象
+        include_sources: 是否包含检索源信息
     """
     # 获取LightRAG实例
     try:
@@ -430,7 +439,7 @@ async def execute_streaming_query(query_text: str, mode: str, args: Args):
         print(f"设置模型: {os.environ['LLM_MODEL']}")
 
     # 创建查询参数，启用流式输出
-    param = QueryParam(mode=mode, stream=True)
+    param = QueryParam(mode=mode, stream=True, include_sources=include_sources)
 
     # 执行流式查询
     try:
@@ -442,8 +451,14 @@ async def execute_streaming_query(query_text: str, mode: str, args: Args):
                 print(chunk, end='', flush=True)
             print()  # 换行
         else:
-            # 如果返回的是字符串，直接输出
-            print(response)
+            # 处理返回结果
+            if include_sources and isinstance(response, dict):
+                print(f"📄 答案: {response['answer']}")
+                print("🔍 检索源信息:")
+                print(json.dumps(response['sources'], indent=2, ensure_ascii=False))
+            else:
+                # 如果返回的是字符串，直接输出
+                print(response)
     except Exception as e:
         print(f"\n警告：流式查询失败，回退到非流式查询")
         print(f"错误详情: {e}")
@@ -451,7 +466,12 @@ async def execute_streaming_query(query_text: str, mode: str, args: Args):
             # 回退到非流式查询
             param.stream = False
             result = await lightrag.aquery(query_text, param=param)
-            print(result)
+            if include_sources and isinstance(result, dict):
+                print(f"📄 答案: {result['answer']}")
+                print("🔍 检索源信息:")
+                print(json.dumps(result['sources'], indent=2, ensure_ascii=False))
+            else:
+                print(result)
         except Exception as fallback_error:
             print(f"错误：非流式查询也失败: {fallback_error}")
             print("请检查网络连接和API配置")
